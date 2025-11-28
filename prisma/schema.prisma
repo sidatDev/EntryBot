@@ -1,0 +1,79 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("USER") // ADMIN, USER
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  documents Document[]
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  name      String
+  url       String   // Path to file or blob URL
+  size      Int
+  type      String   // PDF, IMG
+  status    String   @default("UPLOADED") // UPLOADED, PROCESSING, COMPLETED
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  invoices  Invoice[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  type          String   // SALES, PURCHASE
+  status        String   @default("DRAFT") // DRAFT, SAVED
+  
+  invoiceNumber String?
+  date          DateTime?
+  dueDate       DateTime?
+  
+  supplierName  String?
+  customerName  String?
+  
+  subTotal      Float?
+  taxTotal      Float?
+  totalAmount   Float?
+  currency      String   @default("USD")
+  
+  documentId    String
+  document      Document @relation(fields: [documentId], references: [id])
+  
+  items         LineItem[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model LineItem {
+  id          String   @id @default(cuid())
+  description String
+  quantity    Float    @default(1)
+  unitPrice   Float    @default(0)
+  total       Float    @default(0)
+  
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+}
