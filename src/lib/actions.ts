@@ -62,3 +62,125 @@ export async function deleteDocument(id: string) {
     revalidatePath("/documents");
     revalidatePath("/dashboard");
 }
+
+export async function saveInvoice(data: {
+    documentId: string;
+    type: string;
+    invoiceNumber: string;
+    date: string;
+    dueDate?: string;
+    supplierName?: string;
+    customerName?: string;
+    subTotal: number;
+    taxTotal: number;
+    totalAmount: number;
+    notes?: string;
+    lineItems: Array<{
+        description: string;
+        quantity: number;
+        unitPrice: number;
+        total: number;
+    }>;
+}) {
+    const invoice = await prisma.invoice.create({
+        data: {
+            documentId: data.documentId,
+            type: data.type,
+            invoiceNumber: data.invoiceNumber,
+            date: new Date(data.date),
+            dueDate: data.dueDate ? new Date(data.dueDate) : null,
+            supplierName: data.supplierName,
+            customerName: data.customerName,
+            subTotal: data.subTotal,
+            taxTotal: data.taxTotal,
+            totalAmount: data.totalAmount,
+            status: "SAVED",
+            items: {
+                create: data.lineItems,
+            },
+        },
+    });
+
+    // Update document status to PROCESSING
+    await prisma.document.update({
+        where: { id: data.documentId },
+        data: { status: "PROCESSING" },
+    });
+
+    revalidatePath("/documents");
+    revalidatePath("/dashboard");
+    revalidatePath(`/documents/${data.documentId}/process`);
+
+    return invoice;
+}
+
+export async function updateDocumentStatus(id: string, status: string) {
+    await prisma.document.update({
+        where: { id },
+        data: { status },
+    });
+
+    revalidatePath("/documents");
+    revalidatePath("/dashboard");
+    revalidatePath(`/documents/${id}/process`);
+}
+
+export async function getInvoicesByDocument(documentId: string) {
+    return await prisma.invoice.findMany({
+        where: { documentId },
+        include: {
+            items: true,
+        },
+        orderBy: { createdAt: "desc" },
+    });
+}
+
+export async function exportInvoicesToCSV() {
+    const invoices = await prisma.invoice.findMany({
+        include: {
+            items: true,
+            document: true,
+        },
+        orderBy: { createdAt: "desc" },
+    });
+
+    // Create CSV header
+    const headers = [
+        "Invoice Number",
+        "Type",
+        "Date",
+        "Supplier/Customer",
+        "Subtotal",
+        "Tax",
+        "Total",
+        "Status",
+        "Document",
+        "Line Items",
+    ];
+
+    // Create CSV rows
+    const rows = invoices.map((inv) => {
+        const party = inv.type === "PURCHASE" ? inv.supplierName : inv.customerName;
+        const lineItems = inv.items
+            .map((item) => `${item.description} (${item.quantity} x $${item.unitPrice})`)
+            .join("; ");
+
+        return [
+            inv.invoiceNumber || "",
+            inv.type,
+            inv.date?.toLocaleDateString() || "",
+            party || "",
+            inv.subTotal?.toFixed(2) || "0.00",
+            inv.taxTotal?.toFixed(2) || "0.00",
+            inv.totalAmount?.toFixed(2) || "0.00",
+            inv.status,
+            inv.document.name,
+            lineItems,
+        ];
+    });
+
+    // Combine headers and rows
+    const csvContent = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n");
+
+    return csvContent;
+}
