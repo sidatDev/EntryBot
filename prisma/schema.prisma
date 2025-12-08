@@ -15,11 +15,12 @@ model User {
   email     String   @unique
   password  String
   name      String?
-  role      String   @default("USER") // ADMIN, USER
+  role      String   @default("SUBMITTER") // SUBMITTER, APPROVER, ADMIN
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  documents Document[]
+
+  submittedDocuments   Document[] @relation("DocumentSubmitter")
+  approvedDocuments    Document[] @relation("DocumentApprover")
 }
 
 model Document {
@@ -28,13 +29,21 @@ model Document {
   url       String   // Path to file or blob URL
   size      Int
   type      String   // PDF, IMG
-  status    String   @default("UPLOADED") // UPLOADED, PROCESSING, COMPLETED
-  
+  status    String   @default("UPLOADED") // UPLOADED, PROCESSING, PENDING_APPROVAL, APPROVED, REJECTED
+
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  
+  user      User     @relation(fields: [userId], references: [id], name: "DocumentSubmitter")
+
+  // Approval workflow fields
+  approvalStatus   String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  approverId       String?
+  approver         User?    @relation(fields: [approverId], references: [id], name: "DocumentApprover", onDelete: SetNull)
+  approvalDate     DateTime?
+  rejectionReason  String?
+  comments         String?
+
   invoices  Invoice[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Save, FileText } from "lucide-react";
+import { Loader2, Save, FileText, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { LineItemsTable } from "./LineItemsTable";
 import { saveInvoice } from "@/lib/actions";
@@ -29,9 +29,10 @@ interface LineItem {
     total: number;
 }
 
-export function InvoiceForm({ documentId }: { documentId: string }) {
+export function InvoiceForm({ documentId, documentUrl }: { documentId: string; documentUrl: string }) {
     const router = useRouter();
     const [saving, setSaving] = useState(false);
+    const [processingAi, setProcessingAi] = useState(false);
     const [lineItems, setLineItems] = useState<LineItem[]>([]);
 
     const form = useForm<InvoiceFormValues>({
@@ -73,6 +74,52 @@ export function InvoiceForm({ documentId }: { documentId: string }) {
         }
     };
 
+    const handleAutoFill = async () => {
+        setProcessingAi(true);
+        try {
+            const response = await fetch("/api/process-ai", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ documentUrl }),
+            });
+
+            if (!response.ok) throw new Error("Failed to process document");
+
+            const data = await response.json();
+
+            // Populate form fields
+            if (data.invoiceNumber) form.setValue("invoiceNumber", data.invoiceNumber);
+            if (data.date) form.setValue("date", data.date);
+            if (data.dueDate) form.setValue("dueDate", data.dueDate);
+
+            // Adjust to purchase if supplier detected, etc. 
+            // Simple logic for now: default to PURCHASE
+            if (data.supplierName) {
+                form.setValue("type", "PURCHASE");
+                form.setValue("supplierName", data.supplierName);
+            } else if (data.customerName) {
+                form.setValue("type", "SALES");
+                form.setValue("customerName", data.customerName);
+            }
+
+            if (data.lineItems && Array.isArray(data.lineItems)) {
+                setLineItems(data.lineItems.map((item: any) => ({
+                    id: Math.random().toString(36).substr(2, 9),
+                    description: item.description || "",
+                    quantity: Number(item.quantity) || 1,
+                    unitPrice: Number(item.unitPrice) || 0,
+                    total: Number(item.total) || 0
+                })));
+            }
+
+        } catch (error) {
+            console.error("AI Processing Error:", error);
+            // Could add a toast notification here
+        } finally {
+            setProcessingAi(false);
+        }
+    };
+
     return (
         <div className="h-full flex flex-col bg-white">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
@@ -80,6 +127,18 @@ export function InvoiceForm({ documentId }: { documentId: string }) {
                     <FileText className="h-5 w-5 text-indigo-600" />
                     <h2 className="font-semibold text-slate-800">Invoice Data Entry</h2>
                 </div>
+                <button
+                    onClick={handleAutoFill}
+                    disabled={processingAi}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                    {processingAi ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                        <Sparkles className="h-4 w-4" />
+                    )}
+                    Auto-fill with AI
+                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
