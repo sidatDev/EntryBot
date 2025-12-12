@@ -19,7 +19,7 @@ const mainNavItems = [
     },
     {
         title: "Bank & Card Statements",
-        href: "/documents?category=STATEMENT",
+        href: "/bank-statements",
         icon: CreditCard,
     },
     {

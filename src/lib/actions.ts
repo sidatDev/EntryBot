@@ -420,3 +420,50 @@ export async function getDashboardStats() {
         expenses: expenses
     };
 }
+
+export async function getBankStatements(status?: string) {
+    const whereClause: any = {
+        category: { in: ["STATEMENT", "BANK_STATEMENT", "CARD_STATEMENT"] }, // Flexible check
+        status: { not: "DELETED" }
+    };
+    if (status && status !== "ALL") {
+        whereClause.status = status; // This status is on the Document model for high level
+    }
+
+    return await prisma.document.findMany({
+        where: whereClause,
+        orderBy: { createdAt: "desc" },
+        include: {
+            bankStatement: true
+        }
+    });
+}
+
+export async function updateBankStatementMetadata(documentId: string, data: {
+    displayName?: string;
+    accountInfo?: string;
+    last4Digits?: string;
+    startDate?: string;
+    endDate?: string;
+}) {
+    // Upsert the bank statement record
+    await prisma.bankStatement.upsert({
+        where: { documentId },
+        create: {
+            documentId,
+            displayName: data.displayName,
+            accountInfo: data.accountInfo,
+            last4Digits: data.last4Digits,
+            startDate: data.startDate ? new Date(data.startDate) : undefined,
+            endDate: data.endDate ? new Date(data.endDate) : undefined,
+        },
+        update: {
+            displayName: data.displayName,
+            accountInfo: data.accountInfo,
+            last4Digits: data.last4Digits,
+            startDate: data.startDate ? new Date(data.startDate) : undefined,
+            endDate: data.endDate ? new Date(data.endDate) : undefined,
+        }
+    });
+    revalidatePath("/bank-statements");
+}

@@ -44,7 +44,8 @@ model Document {
   rejectionReason  String?
   comments         String?
 
-  invoices  Invoice[]
+  invoices       Invoice[]
+  bankStatement  BankStatement?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -93,4 +94,25 @@ model LineItem {
   invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   
   createdAt   DateTime @default(now())
+}
+
+model BankStatement {
+  id            String   @id @default(cuid())
+  displayName   String?
+  statementType String   @default("BANK") // BANK, CARD
+  
+  accountInfo   String?
+  last4Digits   String?
+  currency      String   @default("GBP")
+  
+  startDate     DateTime?
+  endDate       DateTime?
+  
+  status        String   @default("PROCESSING") // PROCESSING, PROCESSED, EXPORTED
+  
+  documentId    String   @unique
+  document      Document @relation(fields: [documentId], references: [id])
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
