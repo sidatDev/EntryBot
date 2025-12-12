@@ -1,115 +1,99 @@
-1.  Functional Requirements (What the system must do)
-    A. Document Management
-        Document Submission & Capture:
+1. Global Navigation & Layout
+The application follows a standard Admin Dashboard layout (Sidebar + Top Bar + Main Content Area).
 
-        The system must allow users to upload invoices and receipts in various file formats (e.g., PDF, JPEG, PNG).
+Sidebar (Primary Navigation)
+Company Branding: Logo and Company Name (e.g., "Rbtesthamza111").
 
-        Automated Data Extraction (OCR): The system should use Optical Character Recognition (OCR) to automatically extract key data points (Vendor Name, Invoice Number, Date, Amount, Line Items, Tax) from the uploaded documents.
+Navigation Links:
 
-        Data Validation & Entry:
+Dashboard
 
-        The system must allow users to manually review and correct the extracted data before submission.
+Invoices & Receipts (Active state)
 
-        The system must allow for manual creation of invoices/receipts if digital capture fails or for internal records.
+Bank & Card Statements
 
-        Categorization and Tagging:
+Other Documents
 
-        The system must allow for categorization of expenses (e.g., Travel, Supplies, Marketing) and tagging with relevant information (e.g., Project ID, Department).
+Upload History
 
-        Storage and Search:
+Recycle Bin
 
-        The system must store the original document image/file and the extracted data securely.
+Configuration Links: Integration Data, Contacts, Chart of Accounts, Payment Methods, VAT/GST Rates.
 
-        The system must support full-text search and filtered search based on date, vendor, amount, status, and category.
+Top Header
+User Profile: User name (Hamza Sheikh) and avatar.
 
-    B. Approval Workflow (The core of the system)
-        Configurable Workflow Rules:
+Quick Actions: Notification bell, Help/Support icon, and Global Settings gear.
 
-        The system must allow administrators to define custom approval workflows (e.g., sequential, parallel).
+System Alert: A "Verification Email" banner with "Resend" and "Change" buttons.
 
-        Rules must be configurable based on parameters like Amount (e.g., >$1,000 requires VP approval), Department, or Expense Category.
+2. Invoices & Receipts Header & Filtering
+This section handles the high-level management of the document list.
 
-        Automatic Routing:
+Status Tabs
+These act as primary filters for the data table:
 
-        The system must automatically route a submitted document to the correct approver(s) based on the configured rules.
+All: Displays every document regardless of status.
 
-        Notifications and Reminders:
+New: Only displays recently uploaded, unprocessed documents.
 
-        The system must send real-time notifications (email/in-app) to approvers when a new document requires their attention.
+Processed: Documents where data extraction/OCR is complete.
 
-        The system must send automated reminders for overdue approvals.
+Approved: Documents finalized by the user.
 
-        The system must notify the submitter of the final approval or rejection.
+Reports: A view for monthly and annual expense summaries.
 
-        Approval Actions:
+Action Toolbar (Top Right)
+Primary Actions: + Add Files (Upload), Approve (Bulk approval for selected items).
 
-        Approvers must be able to Approve, Reject (with mandatory reason/comments), or Request Changes on a document.
+Secondary Actions: Bulk Edit, Columns (Toggle visibility), Transfer (Export to accounting software).
 
-        Status Tracking:
+Utility Actions: Export CSV, Refresh, Filter (Advanced search), and Delete.
 
-        The system must display the real-time approval status for every document (e.g., Draft, Pending Approval, Approved, Rejected, Paid).
+3. The Data Table (Core Component)
+The table is dynamic and allows for both viewing and inline editing.
 
-    C. Reporting and Integration
-        Reporting Dashboard:
+Table Columns
+Selection (Checkbox): To select multiple rows for bulk actions.
 
-        The dashboard must provide a visual overview of key metrics (like the image shows):
+Doc ID: Unique identifier for the document.
 
-        Total outstanding/pending documents/payments.
+Doc Type: Visual icon representing the document type (e.g., Receipt, Invoice, Credit Note).
 
-        Approval process bottlenecks (e.g., average approval time per approver).
+Supplier Name: Name of the vendor.
 
-        Spending breakdown by category or department.
+Invoice Date: The date found on the document.
 
-        Audit Trail:
+Amount (Invoice Currency): Total in the original currency.
 
-        The system must maintain an immutable audit trail logging every action on a document (submission, date/time of review, approver name, comments, rejection reason, payment date).
+Amount (Base Currency): Total converted to the business's functional currency.
 
-        Integration:
+Category (Dropdown): Editable field to assign the document to a ledger account (e.g., General Expenses).
 
-        The system must have the capability to integrate with existing accounting software (e.g., QuickBooks, SAP, Xero) to sync approved invoices and payment data.
+Payment Method (Dropdown): Editable field to specify how it was paid (e.g., Commonwealth Bank).
 
-2.  Non-Functional Requirements (How the system performs)
-    Security:
+Actions:
 
-    The system must implement role-based access control (RBAC) to ensure users only see and interact with documents they are authorized for (e.g., an Approver can't edit a document, a Submitter can't see all department spending).
+Approve Button: To finalize a single document.
 
-    Data (especially financial records) must be secured using encryption.
+View/Edit Icon: Usually to open the document side-by-side with the data for manual verification.
 
-    Performance:
+4. Interaction Features
+Inline Editing: The Category and Payment Method columns use dropdowns so users can update data without leaving the list view.
 
-    The data extraction (OCR) and document load times must be fast (e.g., load documents within 2-3 seconds).
+Bulk Processing: Selecting multiple checkboxes enables the top "Approve" or "Delete" buttons.
 
-    Usability:
+Pagination: A "Show [X] records" dropdown at the bottom left to control row density.
 
-    The user interface (UI) must be intuitive, responsive, and easy to navigate for all user roles (Submitters, Approvers, Admins).
+Status Indicators: Visual cues (like the blue loading circle in the "Doc Type" column) to show processing state.
 
-    The system should be accessible on mobile devices for on-the-go approvals.
+5. Summary of Functional Requirements
+To build this, your tech stack will need to handle:
 
-    Scalability:
+State Management: To handle tab switching and bulk selection.
 
-    The underlying architecture must be able to handle a growing volume of documents and an increasing number of users without a degradation in performance.
+File Upload: A modal or drop-zone triggered by the "Add Files" button.
 
-3.  Core System Components
-    To build this, your development process will require:
+CSV Export Logic: To parse the current table view into a downloadable file.
 
-    Front-end Development (UI/UX): For the interactive dashboard, forms, and document viewing.
-
-    Technologies: React, Angular, Vue.js, or similar framework.
-
-    Back-end Development (Logic and APIs): For data processing, routing, and workflow management.
-
-    Technologies: Python (Django/Flask), Node.js, Java (Spring), or similar, with a robust API layer.
-
-    Database: For storing all document data, user accounts, and audit trails.
-
-    Technologies: PostgreSQL, MySQL, MongoDB.
-
-    Document Storage: For storing the original, high-resolution document files.
-
-    Technologies: Cloud storage solutions (AWS S3, Google Cloud Storage, Azure Blob Storage).
-
-    OCR/AI Service: For automated data extraction. This is often an external API service.
-
-    Technologies: Google Document AI, AWS Textract, or a specialized OCR library.
-
-    Workflow Engine: A core component to manage the approval logic, status updates, and routing. This can be built custom or use a dedicated tool.
+Dynamic Data Fetching: Filtering the table API call based on the active Tab (New, Processed, etc.).

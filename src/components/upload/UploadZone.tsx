@@ -7,7 +7,11 @@ import { uploadDocument } from "@/lib/actions";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 
-export function UploadZone() {
+interface UploadZoneProps {
+    category?: string;
+}
+
+export function UploadZone({ category = "GENERAL" }: UploadZoneProps) {
     const { data: session } = useSession();
     const [uploading, setUploading] = useState(false);
     const [files, setFiles] = useState<File[]>([]);
@@ -25,14 +29,15 @@ export function UploadZone() {
     });
 
     const handleUpload = async () => {
-        if (!session?.user?.id) return;
+        if (!(session?.user as any)?.id) return;
         setUploading(true);
 
         try {
             for (const file of files) {
                 const formData = new FormData();
                 formData.append("file", file);
-                formData.append("userId", session.user.id);
+                formData.append("userId", (session?.user as any)?.id);
+                formData.append("category", category);
                 await uploadDocument(formData);
             }
             setFiles([]);

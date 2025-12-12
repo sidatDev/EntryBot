@@ -2,13 +2,15 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { writeFile } from "fs/promises";
+import { writeFile, readFile } from "fs/promises";
 import { join } from "path";
 import { mkdir } from "fs/promises";
+import { PDFDocument } from "pdf-lib";
 
 export async function uploadDocument(formData: FormData) {
     const file = formData.get("file") as File;
     const userId = formData.get("userId") as string;
+    const category = (formData.get("category") as string) || "GENERAL";
 
     if (!file || !userId) {
         throw new Error("Missing file or user ID");
@@ -39,6 +41,7 @@ export async function uploadDocument(formData: FormData) {
             type: file.type.includes("pdf") ? "PDF" : "IMG",
             userId: userId,
             status: "UPLOADED",
+            category: category,
         },
     });
 
@@ -46,8 +49,106 @@ export async function uploadDocument(formData: FormData) {
     revalidatePath("/dashboard");
 }
 
-export async function getDocuments() {
+export async function mergeDocuments(documentIds: string[], userId: string) {
+    if (documentIds.length < 2) throw new Error("Need at least 2 documents to merge");
+
+    const documents = await prisma.document.findMany({
+        where: {
+            id: { in: documentIds },
+            userId: userId,
+            type: "PDF" // Only support PDF merging for now
+        }
+    });
+
+    if (documents.length !== documentIds.length) throw new Error("Some documents not found or not PDFs");
+
+    const mergedPdf = await PDFDocument.create();
+
+    for (const doc of documents) {
+        // Resolve absolute path
+        const relativePath = doc.url.startsWith("/") ? doc.url.slice(1) : doc.url;
+        const filePath = join(process.cwd(), "public", relativePath);
+
+        const pdfBytes = await readFile(filePath);
+        const pdf = await PDFDocument.load(pdfBytes);
+        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+        copiedPages.forEach((page) => mergedPdf.addPage(page));
+    }
+
+    const pdfBytes = await mergedPdf.save();
+
+    // Save new file
+    const uploadDir = join(process.cwd(), "public", "uploads");
+    const fileName = `merged-${Date.now()}.pdf`;
+    const filePath = join(uploadDir, fileName);
+    const publicUrl = `/uploads/${fileName}`;
+
+    await writeFile(filePath, pdfBytes);
+
+    // Create new document record
+    await prisma.document.create({
+        data: {
+            name: "Merged Document.pdf",
+            url: publicUrl,
+            size: pdfBytes.length,
+            type: "PDF",
+            userId: userId,
+            status: "UPLOADED",
+            category: documents[0].category // Inherit category from first
+        }
+    });
+
+    revalidatePath("/documents");
+}
+
+export async function splitDocument(documentId: string) {
+    // Logic: Split a PDF into individual 1-page PDFs?
+    // User requirement: "split multi-page PDFs into separate pages"
+
+    const doc = await prisma.document.findUnique({ where: { id: documentId } });
+    if (!doc || doc.type !== "PDF") throw new Error("Document not found or not PDF");
+
+    const relativePath = doc.url.startsWith("/") ? doc.url.slice(1) : doc.url;
+    const filePath = join(process.cwd(), "public", relativePath);
+
+    const pdfBytes = await readFile(filePath);
+    const pdf = await PDFDocument.load(pdfBytes);
+    const numPages = pdf.getPageCount();
+
+    if (numPages <= 1) throw new Error("Document has only 1 page");
+
+    const uploadDir = join(process.cwd(), "public", "uploads");
+
+    for (let i = 0; i < numPages; i++) {
+        const subPdf = await PDFDocument.create();
+        const [page] = await subPdf.copyPages(pdf, [i]);
+        subPdf.addPage(page);
+        const subBytes = await subPdf.save();
+
+        const fileName = `split-${doc.name}-${i + 1}-${Date.now()}.pdf`;
+        const subFilePath = join(uploadDir, fileName);
+        await writeFile(subFilePath, subBytes);
+
+        await prisma.document.create({
+            data: {
+                name: `${doc.name} - Page ${i + 1}`,
+                url: `/uploads/${fileName}`,
+                size: subBytes.length,
+                type: "PDF",
+                userId: doc.userId,
+                status: "UPLOADED",
+                category: doc.category
+            }
+        });
+    }
+
+    revalidatePath("/documents");
+}
+
+export async function getDocuments(category?: string) {
+    const whereClause = category ? { category } : {};
     return await prisma.document.findMany({
+        where: whereClause,
         orderBy: { createdAt: "desc" },
         include: {
             _count: {

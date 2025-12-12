@@ -5,7 +5,11 @@ import { Upload } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { UploadZone } from "./UploadZone";
 
-export function UploadModal() {
+interface UploadModalProps {
+    category?: "SALES" | "PURCHASE" | "GENERAL";
+}
+
+export function UploadModal({ category = "GENERAL" }: UploadModalProps) {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -23,7 +27,7 @@ export function UploadModal() {
                 onClose={() => setIsOpen(false)}
                 title="Upload Documents"
             >
-                <UploadZone />
+                <UploadZone category={category} />
             </Modal>
         </>
     );

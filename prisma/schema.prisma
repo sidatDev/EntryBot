@@ -29,6 +29,8 @@ model Document {
   url       String   // Path to file or blob URL
   size      Int
   type      String   // PDF, IMG
+  category  String   @default("GENERAL") // SALES, PURCHASE, GENERAL
+  extractedText String? // Raw OCR text
   status    String   @default("UPLOADED") // UPLOADED, PROCESSING, PENDING_APPROVAL, APPROVED, REJECTED
 
   userId    String

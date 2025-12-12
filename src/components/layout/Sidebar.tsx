@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Settings, LogOut, User } from "lucide-react";
+import { LayoutDashboard, FileText, Settings, LogOut, User, ShoppingCart, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
 
@@ -13,9 +13,14 @@ const navItems = [
         icon: LayoutDashboard,
     },
     {
-        title: "Documents",
-        href: "/documents",
-        icon: FileText,
+        title: "Sales Invoices",
+        href: "/documents?category=SALES",
+        icon: TrendingUp,
+    },
+    {
+        title: "Purchase Invoices",
+        href: "/documents?category=PURCHASE",
+        icon: ShoppingCart,
     },
     {
         title: "Settings",
