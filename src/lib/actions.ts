@@ -467,3 +467,118 @@ export async function updateBankStatementMetadata(documentId: string, data: {
     });
     revalidatePath("/bank-statements");
 }
+
+/* OTHER DOCUMENTS & TAGGING ACTIONS */
+
+export async function getOtherDocuments() {
+    return await prisma.document.findMany({
+        where: {
+            category: "OTHER",
+            status: { not: "DELETED" }
+        },
+        orderBy: { createdAt: "desc" },
+        include: {
+            tags: true
+        }
+    });
+}
+
+export async function addTag(documentId: string, tagName: string) {
+    // Ensure tag exists or create it
+    const tag = await prisma.tag.upsert({
+        where: { name: tagName },
+        update: {},
+        create: { name: tagName }
+    });
+
+    // Connect tag to document
+    await prisma.document.update({
+        where: { id: documentId },
+        data: {
+            tags: {
+                connect: { id: tag.id }
+            }
+        }
+    });
+
+    revalidatePath("/other-documents");
+}
+
+export async function removeTag(documentId: string, tagId: string) {
+    await prisma.document.update({
+        where: { id: documentId },
+        data: {
+            tags: {
+                disconnect: { id: tagId }
+            }
+        }
+    });
+    revalidatePath("/other-documents");
+}
+
+export async function updateDocumentDetails(documentId: string, data: { status?: string, notes?: string, type?: string }) {
+    const updateData: any = {};
+    if (data.status) updateData.status = data.status;
+    if (data.notes !== undefined) updateData.notes = data.notes;
+    // If type is updated, we might be changing category? 
+    // The requirement says "Document Type Selector ... Must consist of defined types".
+    // If user changes type to "Invoice", it might technically cease to be an "Other Document".
+    // For now, let's assume it updates the `category` field if it maps to one, or just keeps it as is.
+    if (data.type) {
+        // Map display type to internal category if needed
+        if (data.type === "Invoice & Receipt") updateData.category = "GENERAL"; // or whatever default
+        else if (data.type === "Bank Statement") updateData.category = "STATEMENT";
+        // else keep 'OTHER' or specific sub-type
+    }
+
+    await prisma.document.update({
+        where: { id: documentId },
+        data: updateData
+    });
+    revalidatePath("/other-documents");
+}
+
+export async function searchTags(query: string) {
+    if (!query) return [];
+    return await prisma.tag.findMany({
+        where: {
+            name: { contains: query }
+        },
+        take: 10
+    });
+}
+
+export async function getUploadHistory(page: number = 1, limit: number = 25, search?: string) {
+    const whereClause: any = {
+        // We want ALL statuses, including DELETED and UPLOADED, so no default filter
+    };
+
+    if (search) {
+        whereClause.name = { contains: search };
+    }
+
+    const [documents, total] = await Promise.all([
+        prisma.document.findMany({
+            where: whereClause,
+            orderBy: { createdAt: "desc" },
+            skip: (page - 1) * limit,
+            take: limit,
+            include: {
+                user: {
+                    select: { name: true, email: true }
+                }
+            }
+        }),
+        prisma.document.count({ where: whereClause })
+    ]);
+
+    return {
+        documents,
+        pagination: {
+            total,
+            pages: Math.ceil(total / limit),
+            current: page,
+            limit
+        }
+    };
+}

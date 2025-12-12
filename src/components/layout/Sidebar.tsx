@@ -24,7 +24,7 @@ const mainNavItems = [
     },
     {
         title: "Other Documents",
-        href: "/documents?category=OTHER",
+        href: "/other-documents",
         icon: Files,
     },
     {
@@ -36,6 +36,11 @@ const mainNavItems = [
         title: "Recycle Bin",
         href: "/recycle-bin",
         icon: Trash2,
+    },
+    {
+        title: "Integration Data",
+        href: "/integration-data",
+        icon: Settings,
     },
 ];
 

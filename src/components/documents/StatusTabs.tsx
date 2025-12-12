@@ -9,7 +9,8 @@ const TABS = [
     { label: "New", value: "UPLOADED" },
     { label: "Processed", value: "PROCESSING" },
     { label: "Approved", value: "COMPLETED" },
-    { label: "Reports", value: "REPORTS", href: "/reports" }, // Special case
+    { label: "Reports", value: "REPORTS" },
+    // { label: "Reports", value: "REPORTS", href: "/reports" },
 ];
 
 export function StatusTabs() {
