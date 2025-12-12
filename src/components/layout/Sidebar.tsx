@@ -44,28 +44,28 @@ const mainNavItems = [
     },
 ];
 
-const integrationItems = [
-    {
-        title: "Contacts",
-        href: "/contacts",
-        icon: Users,
-    },
-    {
-        title: "Chart of Accounts",
-        href: "/chart-of-accounts",
-        icon: BookOpen,
-    },
-    {
-        title: "Payment Methods",
-        href: "/payment-methods",
-        icon: CreditCard,
-    },
-    {
-        title: "VAT/GST Rates",
-        href: "/tax-rates",
-        icon: Percent,
-    },
-];
+// const integrationItems = [
+//     {
+//         title: "Contacts",
+//         href: "/contacts",
+//         icon: Users,
+//     },
+//     {
+//         title: "Chart of Accounts",
+//         href: "/chart-of-accounts",
+//         icon: BookOpen,
+//     },
+//     {
+//         title: "Payment Methods",
+//         href: "/payment-methods",
+//         icon: CreditCard,
+//     },
+//     {
+//         title: "VAT/GST Rates",
+//         href: "/tax-rates",
+//         icon: Percent,
+//     },
+// ];
 
 export function Sidebar() {
     const pathname = usePathname();
@@ -119,7 +119,7 @@ export function Sidebar() {
                     })}
                 </nav>
 
-                <div className="mt-8 px-6 mb-2">
+                {/* <div className="mt-8 px-6 mb-2">
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                         <span className="w-2 h-2 bg-slate-600 rounded-full"></span>
                         Integration Data
@@ -142,7 +142,7 @@ export function Sidebar() {
                             </Link>
                         );
                     })}
-                </nav>
+                </nav> */}
             </div>
 
             {/* User Profile Footer */}
