@@ -17,7 +17,7 @@ export default async function BankStatementsPage({
                 <p className="text-slate-500">Manage and process your bank and credit card statements.</p>
             </div>
 
-            <StatusTabs currentStatus={status} />
+            <StatusTabs />
             <BankStatementList documents={documents} />
         </div>
     );

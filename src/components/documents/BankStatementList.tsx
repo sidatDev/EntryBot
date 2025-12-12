@@ -1,6 +1,6 @@
 "use client";
 
-import { Document, BankStatement } from "@prisma/client";
+import { Document } from "@prisma/client";
 import { format } from "date-fns";
 import {
     FileText,
@@ -21,12 +21,8 @@ import { Button } from "@/components/ui/button"; // Assuming standard UI button
 import Link from "next/link";
 import { UploadModal } from "@/components/upload/UploadModal";
 
-type DocumentWithStatement = Document & {
-    bankStatement: BankStatement | null;
-};
-
 interface BankStatementListProps {
-    documents: DocumentWithStatement[];
+    documents: any[];
     isRecycleBin?: boolean;
 }
 
