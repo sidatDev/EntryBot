@@ -2,6 +2,7 @@ import { getDocuments, exportInvoicesToCSV } from "@/lib/actions";
 import { UploadModal } from "@/components/upload/UploadModal";
 import { Download } from "lucide-react";
 import { DocumentList } from "@/components/documents/DocumentList";
+import { StatusTabs } from "@/components/documents/StatusTabs";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -14,13 +15,17 @@ export default async function DocumentsPage({
 }) {
     const params = await searchParams;
     const category = (params.category as Category) || undefined;
+    const status = (params.status as string) || undefined;
 
     // Validate category to ensure it matches allowed types
     const validCategory = category && ["SALES", "PURCHASE", "GENERAL"].includes(category)
         ? category
         : undefined;
 
-    const documents = await getDocuments(validCategory);
+    // Status validation could be added but generic string is fine for now as API handles it safely
+    const validStatus = status === "ALL" ? undefined : status;
+
+    const documents = await getDocuments(validCategory, validStatus);
 
     const title = validCategory === "SALES"
         ? "Sales Invoices"
@@ -61,9 +66,7 @@ export default async function DocumentsPage({
                 </div>
             </div>
 
-
-
-
+            <StatusTabs />
 
             <DocumentList documents={documents} />
         </div >

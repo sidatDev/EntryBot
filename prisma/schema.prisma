@@ -31,7 +31,7 @@ model Document {
   type      String   // PDF, IMG
   category  String   @default("GENERAL") // SALES, PURCHASE, GENERAL
   extractedText String? // Raw OCR text
-  status    String   @default("UPLOADED") // UPLOADED, PROCESSING, PENDING_APPROVAL, APPROVED, REJECTED
+  status    String   @default("UPLOADED") // UPLOADED, PROCESSING, PENDING_APPROVAL, APPROVED, REJECTED, DELETED
 
   userId    String
   user      User     @relation(fields: [userId], references: [id], name: "DocumentSubmitter")
@@ -48,6 +48,7 @@ model Document {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // For soft delete functionality
 }
 
 model Invoice {
@@ -66,6 +67,11 @@ model Invoice {
   taxTotal      Float?
   totalAmount   Float?
   currency      String   @default("USD")
+
+  // New fields for Enhanced Document Table
+  paymentMethod      String?
+  baseCurrencyAmount Float?
+  exchangeRate       Float?   @default(1.0)
   
   documentId    String
   document      Document @relation(fields: [documentId], references: [id])

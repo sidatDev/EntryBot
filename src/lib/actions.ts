@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { writeFile, readFile } from "fs/promises";
+import { writeFile, readFile, unlink } from "fs/promises";
 import { join } from "path";
 import { mkdir } from "fs/promises";
 import { PDFDocument } from "pdf-lib";
@@ -47,6 +47,7 @@ export async function uploadDocument(formData: FormData) {
 
     revalidatePath("/documents");
     revalidatePath("/dashboard");
+    revalidatePath("/history");
 }
 
 export async function mergeDocuments(documentIds: string[], userId: string) {
@@ -56,7 +57,8 @@ export async function mergeDocuments(documentIds: string[], userId: string) {
         where: {
             id: { in: documentIds },
             userId: userId,
-            type: "PDF" // Only support PDF merging for now
+            type: "PDF",
+            status: { not: "DELETED" }
         }
     });
 
@@ -102,9 +104,6 @@ export async function mergeDocuments(documentIds: string[], userId: string) {
 }
 
 export async function splitDocument(documentId: string) {
-    // Logic: Split a PDF into individual 1-page PDFs?
-    // User requirement: "split multi-page PDFs into separate pages"
-
     const doc = await prisma.document.findUnique({ where: { id: documentId } });
     if (!doc || doc.type !== "PDF") throw new Error("Document not found or not PDF");
 
@@ -145,8 +144,17 @@ export async function splitDocument(documentId: string) {
     revalidatePath("/documents");
 }
 
-export async function getDocuments(category?: string) {
-    const whereClause = category ? { category } : {};
+export async function getDocuments(category?: string, status?: string) {
+    const whereClause: any = {
+        status: { not: "DELETED" }
+    };
+    if (category && category !== "ALL") {
+        whereClause.category = category;
+    }
+    if (status && status !== "ALL") {
+        whereClause.status = status;
+    }
+
     return await prisma.document.findMany({
         where: whereClause,
         orderBy: { createdAt: "desc" },
@@ -154,14 +162,74 @@ export async function getDocuments(category?: string) {
             _count: {
                 select: { invoices: true },
             },
+            invoices: {
+                take: 1,
+                orderBy: { createdAt: "desc" }
+            }
         },
     });
 }
 
-export async function deleteDocument(id: string) {
-    await prisma.document.delete({ where: { id } });
+export async function getDeletedDocuments() {
+    return await prisma.document.findMany({
+        where: { status: "DELETED" },
+        orderBy: { updatedAt: "desc" }, // Most recently deleted first
+        include: {
+            invoices: {
+                take: 1,
+                orderBy: { createdAt: "desc" }
+            }
+        }
+    });
+}
+
+// Soft delete
+export async function softDeleteDocument(id: string) {
+    await prisma.document.update({
+        where: { id },
+        data: {
+            status: "DELETED",
+            deletedAt: new Date()
+        },
+    });
     revalidatePath("/documents");
     revalidatePath("/dashboard");
+    revalidatePath("/recycle-bin");
+}
+
+// Restore from recycle bin
+export async function restoreDocument(id: string) {
+    await prisma.document.update({
+        where: { id },
+        data: {
+            status: "UPLOADED", // Or previous status if we tracked it, but UPLOADED is safe
+            deletedAt: null
+        },
+    });
+    revalidatePath("/documents");
+    revalidatePath("/dashboard");
+    revalidatePath("/recycle-bin");
+}
+
+// Permanent delete
+export async function permanentDeleteDocument(id: string) {
+    const doc = await prisma.document.findUnique({ where: { id } });
+    if (!doc) return;
+
+    // Delete file from disk
+    const relativePath = doc.url.startsWith("/") ? doc.url.slice(1) : doc.url;
+    const filePath = join(process.cwd(), "public", relativePath);
+    try {
+        await unlink(filePath);
+    } catch (e) {
+        console.error("Failed to delete file:", e);
+    }
+
+    // Delete invoices first to avoid relation errors (if not cascaded)
+    await prisma.invoice.deleteMany({ where: { documentId: id } });
+    await prisma.document.delete({ where: { id } });
+
+    revalidatePath("/recycle-bin");
 }
 
 export async function saveInvoice(data: {
@@ -175,6 +243,9 @@ export async function saveInvoice(data: {
     subTotal: number;
     taxTotal: number;
     totalAmount: number;
+    paymentMethod?: string;
+    baseCurrencyAmount?: number;
+    exchangeRate?: number;
     notes?: string;
     lineItems: Array<{
         description: string;
@@ -195,6 +266,9 @@ export async function saveInvoice(data: {
             subTotal: data.subTotal,
             taxTotal: data.taxTotal,
             totalAmount: data.totalAmount,
+            paymentMethod: data.paymentMethod,
+            baseCurrencyAmount: data.baseCurrencyAmount,
+            exchangeRate: data.exchangeRate,
             status: "SAVED",
             items: {
                 create: data.lineItems,
@@ -226,6 +300,22 @@ export async function updateDocumentStatus(id: string, status: string) {
     revalidatePath(`/documents/${id}/process`);
 }
 
+export async function updateDocumentCategory(id: string, category: string) {
+    await prisma.document.update({
+        where: { id },
+        data: { category },
+    });
+    revalidatePath("/documents");
+}
+
+export async function updateInvoicePaymentMethod(invoiceId: string, paymentMethod: string) {
+    await prisma.invoice.update({
+        where: { id: invoiceId },
+        data: { paymentMethod },
+    });
+    revalidatePath("/documents");
+}
+
 export async function getInvoicesByDocument(documentId: string) {
     return await prisma.invoice.findMany({
         where: { documentId },
@@ -254,6 +344,7 @@ export async function exportInvoicesToCSV() {
         "Subtotal",
         "Tax",
         "Total",
+        "Currency",
         "Status",
         "Document",
         "Line Items",
@@ -274,6 +365,7 @@ export async function exportInvoicesToCSV() {
             inv.subTotal?.toFixed(2) || "0.00",
             inv.taxTotal?.toFixed(2) || "0.00",
             inv.totalAmount?.toFixed(2) || "0.00",
+            inv.currency,
             inv.status,
             inv.document.name,
             lineItems,
