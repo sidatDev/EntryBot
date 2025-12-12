@@ -6,7 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { UploadZone } from "./UploadZone";
 
 interface UploadModalProps {
-    category?: "SALES" | "PURCHASE" | "GENERAL";
+    category?: "SALES" | "PURCHASE" | "GENERAL" | "STATEMENT" | "OTHER";
 }
 
 export function UploadModal({ category = "GENERAL" }: UploadModalProps) {

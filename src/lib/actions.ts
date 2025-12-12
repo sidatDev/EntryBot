@@ -377,3 +377,46 @@ export async function exportInvoicesToCSV() {
 
     return csvContent;
 }
+
+export async function getDashboardStats() {
+    const totalDocs = await prisma.document.count({ where: { status: { not: "DELETED" } } });
+    const processing = await prisma.document.count({ where: { status: "PROCESSING" } });
+    const completed = await prisma.document.count({ where: { status: "COMPLETED" } });
+    const uploaded = await prisma.document.count({ where: { status: "UPLOADED" } });
+
+    // Mock data for graphs and other widgets until real data is available
+    const expenses = [
+        { month: 'Jan', amount: 4000 },
+        { month: 'Feb', amount: 3000 },
+        { month: 'Mar', amount: 2000 },
+        { month: 'Apr', amount: 2780 },
+        { month: 'May', amount: 1890 },
+        { month: 'Jun', amount: 2390 },
+        { month: 'Jul', amount: 3490 },
+    ];
+
+    const processingInvoices = await prisma.document.count({
+        where: {
+            status: "PROCESSING",
+            // In future, filter by document type if we distinguish Invoice vs Bank Statement at Upload
+        }
+    });
+
+    return {
+        documents: {
+            total: totalDocs,
+            processing: processing,
+            completed: completed,
+            uploaded: uploaded,
+        },
+        invoicesReceipts: {
+            processing: processingInvoices, // Using same for now
+            ready: completed
+        },
+        bankStatements: {
+            processing: 0, // Mock
+            ready: 0
+        },
+        expenses: expenses
+    };
+}
