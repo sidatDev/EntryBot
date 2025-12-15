@@ -11,18 +11,22 @@ import { UploadModal } from "@/components/upload/UploadModal";
 
 interface DocumentListProps {
     documents: any[];
-    // Type definition refinement could be done in a separate types file
     isRecycleBin?: boolean;
+    category?: string;  // ADD THIS LINE
 }
 
 const CATEGORY_OPTIONS = ["GENERAL", "SALES", "PURCHASE", "STATEMENT", "OTHER"];
 const PAYMENT_METHODS = ["None", "Cash", "Bank Transfer", "Credit Card", "Debit Card", "Commonwealth Bank"]; // Example list
 
-export function DocumentList({ documents, isRecycleBin = false }: DocumentListProps) {
+export function DocumentList({ documents, isRecycleBin = false, category }: DocumentListProps) {
     const router = useRouter();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [itemsPerPage, setItemsPerPage] = useState(25);
-
+    const uploadCategory = category === "SALES_INVOICE"
+        ? "SALES_INVOICE"
+        : category === "PURCHASE_INVOICE"
+            ? "PURCHASE_INVOICE"
+            : "SALES_INVOICE";
     const toggleSelection = (id: string) => {
         setSelectedIds((prev) =>
             prev.includes(id)
@@ -112,6 +116,7 @@ export function DocumentList({ documents, isRecycleBin = false }: DocumentListPr
             {/* Action Bar - Row 2 */}
             <div className={`flex items-center gap-2 ${isRecycleBin ? 'bg-red-500' : 'bg-blue-500'} p-2 rounded-t-lg text-white`}>
                 {/* Replaced Add Files button with UploadModal trigger or integrated it */}
+                <UploadModal category={uploadCategory} />
                 {/* We can wrap UploadModal trigger here or custom button */}
                 {!isRecycleBin && (
                     <>
