@@ -145,28 +145,34 @@ export async function splitDocument(documentId: string) {
     revalidatePath("/documents");
 }
 
+// --- DOCUMENTS ---
+
 export async function getDocuments(category?: string, status?: string) {
-    const whereClause: any = {
-        status: { not: "DELETED" }
+    const where: any = {
+        deletedAt: null,
     };
-    if (category && category !== "ALL") {
-        whereClause.category = category;
+
+    // Filter by category if provided
+    if (category === "SALES_INVOICE") {
+        where.category = "SALES_INVOICE";
+    } else if (category === "PURCHASE_INVOICE") {
+        where.category = "PURCHASE_INVOICE";
     }
-    if (status && status !== "ALL") {
-        whereClause.status = status;
+
+    // Filter by status if provided
+    if (status) {
+        where.status = status;
     }
 
     return await prisma.document.findMany({
-        where: whereClause,
+        where,
         orderBy: { createdAt: "desc" },
         include: {
-            _count: {
-                select: { invoices: true },
-            },
             invoices: {
                 take: 1,
                 orderBy: { createdAt: "desc" }
-            }
+            },
+            bankStatement: true,
         },
     });
 }

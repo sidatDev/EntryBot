@@ -1,74 +1,37 @@
-import { getDocuments, exportInvoicesToCSV } from "@/lib/actions";
-import { UploadModal } from "@/components/upload/UploadModal";
-import { Download } from "lucide-react";
+import { getDocuments } from "@/lib/actions";
 import { DocumentList } from "@/components/documents/DocumentList";
-import { StatusTabs } from "@/components/documents/StatusTabs";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
-
-type Category = "SALES" | "PURCHASE" | "GENERAL";
 
 export default async function DocumentsPage({
     searchParams,
 }: {
-    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+    searchParams: Promise<{ category?: string }>;
 }) {
-    const params = await searchParams;
-    const category = (params.category as Category) || undefined;
-    const status = (params.status as string) || undefined;
+    const { category } = await searchParams;
 
-    // Validate category to ensure it matches allowed types
-    const validCategory = category && ["SALES", "PURCHASE", "GENERAL"].includes(category)
-        ? category
-        : undefined;
+    // Fetch documents based on category
+    const documents = await getDocuments(category);
 
-    // Status validation could be added but generic string is fine for now as API handles it safely
-    const validStatus = status === "ALL" ? undefined : status;
+    // Determine page title based on category
+    const pageTitle = category === "SALES_INVOICE"
+        ? "Sales Invoices & Receipts"
+        : category === "PURCHASE_INVOICE"
+            ? "Purchase Invoices & Receipts"
+            : "All Invoices & Receipts";
 
-    const documents = await getDocuments(validCategory, validStatus);
-
-    const title = validCategory === "SALES"
-        ? "Sales Invoices"
-        : validCategory === "PURCHASE"
-            ? "Purchase Invoices"
-            : "Document Queue";
-
-    async function handleExport() {
-        "use server";
-        const csv = await exportInvoicesToCSV();
-        return csv;
-    }
+    const pageDescription = category === "SALES_INVOICE"
+        ? "Manage your sales invoices and receipts"
+        : category === "PURCHASE_INVOICE"
+            ? "Manage your purchase invoices and receipts"
+            : "Manage all your invoices and receipts";
 
     return (
-        <div className="space-y-8">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-800">{title}</h1>
-                    <p className="text-slate-500">Manage and process your {validCategory ? validCategory.toLowerCase() : "uploaded"} files</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <form action={async () => {
-                        "use server";
-                        const csv = await exportInvoicesToCSV();
-                        // Note: In a real app, you'd trigger a download here
-                        // For now, we'll just log it
-                        console.log("CSV Export:", csv);
-                    }}>
-                        <button
-                            type="submit"
-                            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium"
-                        >
-                            <Download className="h-4 w-4" />
-                            Export CSV
-                        </button>
-                    </form>
-                    <UploadModal category={validCategory} />
-                </div>
+        <div className="space-y-6">
+            <div className="flex flex-col gap-2">
+                <h1 className="text-2xl font-bold text-slate-800">{pageTitle}</h1>
+                <p className="text-slate-500">{pageDescription}</p>
             </div>
 
-            <StatusTabs />
-
-            <DocumentList documents={documents} />
-        </div >
+            <DocumentList documents={documents} category={category} />
+        </div>
     );
 }

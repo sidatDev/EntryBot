@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Settings, LogOut, User, ShoppingCart, TrendingUp, History, Trash2, CreditCard, Files, Users, BookOpen, Percent, Shield } from "lucide-react";
+import { LayoutDashboard, FileText, Settings, LogOut, User, ShoppingCart, TrendingUp, History, Trash2, CreditCard, Files, Users, BookOpen, Percent, Shield, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
@@ -61,9 +61,21 @@ const mainNavItems = [
     },
     {
         title: "Invoices & Receipts",
-        href: "/documents",
         icon: FileText,
-        permissionKey: "showInvoices"
+        permissionKey: "showInvoices",
+        hasDropdown: true,
+        subItems: [
+            {
+                title: "Sales Invoices",
+                href: "/documents?category=SALES_INVOICE",
+                permissionKey: "showInvoices"
+            },
+            {
+                title: "Purchase Invoices",
+                href: "/documents?category=PURCHASE_INVOICE",
+                permissionKey: "showInvoices"
+            }
+        ]
     },
     {
         title: "Bank & Card Statements",
@@ -123,6 +135,7 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
         showUsers: false,
         showRoles: false
     });
+    const [expandedItems, setExpandedItems] = useState<string[]>(["Invoices & Receipts"]); // Default expanded
 
     // Fetch permissions on mount and when session changes
     useEffect(() => {
@@ -168,25 +181,84 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
                 <nav className="space-y-1 px-3">
                     {visibleNavItems.map((item) => {
                         const Icon = item.icon;
+
+                        // Handle dropdown items
+                        if (item.hasDropdown && item.subItems) {
+                            const isExpanded = expandedItems.includes(item.title);
+                            const isAnySubItemActive = item.subItems.some(subItem =>
+                                pathname.includes(subItem.href)
+                            );
+
+                            return (
+                                <div key={item.title}>
+                                    <button
+                                        onClick={() => {
+                                            setExpandedItems(prev =>
+                                                prev.includes(item.title)
+                                                    ? prev.filter(t => t !== item.title)
+                                                    : [...prev, item.title]
+                                            );
+                                        }}
+                                        className={cn(
+                                            "w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium transition-all duration-200 border-l-4",
+                                            isAnySubItemActive
+                                                ? "bg-slate-800 text-white border-blue-500"
+                                                : "text-slate-400 hover:bg-slate-800 hover:text-white border-transparent"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Icon className={cn("h-5 w-5", isAnySubItemActive ? "text-blue-500" : "text-slate-400")} />
+                                            {item.title}
+                                        </div>
+                                        <ChevronDown className={cn(
+                                            "h-4 w-4 transition-transform",
+                                            isExpanded ? "rotate-180" : ""
+                                        )} />
+                                    </button>
+
+                                    {isExpanded && (
+                                        <div className="ml-4 mt-1 space-y-1">
+                                            {item.subItems.map((subItem) => {
+                                                const isSubActive = pathname.includes(subItem.href);
+                                                return (
+                                                    <Link
+                                                        key={subItem.title}
+                                                        href={subItem.href}
+                                                        className={cn(
+                                                            "flex items-center gap-3 px-3 py-2 text-sm font-medium transition-all duration-200 rounded-md",
+                                                            isSubActive
+                                                                ? "bg-slate-700 text-white"
+                                                                : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                                                        )}
+                                                    >
+                                                        <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                                                        {subItem.title}
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        }
+
+                        // Regular items
                         const isActive = item.href === "/dashboard"
                             ? pathname === "/dashboard"
-                            : pathname === item.href || (pathname.startsWith("/documents") && item.href.includes("category") && pathname.includes(item.href.split("?")[1]));
-
-                        const isMainDocs = item.title === "Invoices & Receipts" && pathname === "/documents" && !pathname.includes("category");
-                        const isSelected = isActive || isMainDocs;
+                            : pathname === item.href;
 
                         return (
                             <Link
                                 key={item.title}
-                                href={item.href}
+                                href={item.href!}
                                 className={cn(
                                     "flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 border-l-4",
-                                    isSelected
+                                    isActive
                                         ? "bg-slate-800 text-white border-blue-500"
                                         : "text-slate-400 hover:bg-slate-800 hover:text-white border-transparent"
                                 )}
                             >
-                                <Icon className={cn("h-5 w-5", isSelected ? "text-blue-500" : "text-slate-400")} />
+                                <Icon className={cn("h-5 w-5", isActive ? "text-blue-500" : "text-slate-400")} />
                                 {item.title}
                             </Link>
                         );
