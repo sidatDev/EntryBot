@@ -22,7 +22,7 @@ export function StatusTabs() {
             {TABS.map((tab) => {
                 const isActive = tab.value === "REPORTS" ? false : (currentStatus === tab.value) || (tab.value === "ALL" && !searchParams.get("status"));
 
-                const href = tab.href || `?status=${tab.value}`;
+                const href = `?status=${tab.value}`;
 
                 return (
                     <Link
