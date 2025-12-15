@@ -2,82 +2,159 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Settings, LogOut, User, ShoppingCart, TrendingUp, History, Trash2, CreditCard, Files, Users, BookOpen, Percent } from "lucide-react";
+import { LayoutDashboard, FileText, Settings, LogOut, User, ShoppingCart, TrendingUp, History, Trash2, CreditCard, Files, Users, BookOpen, Percent, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { getUserPermissionsAction, type UserPermissions } from "@/lib/permissions-actions";
+
+// Client-side utility functions
+function hasPermission(userPermissions: UserPermissions, permission: string): boolean {
+    const ADMIN_PERMISSIONS = "*";
+    // Admin has all permissions
+    if (userPermissions.permissions.includes(ADMIN_PERMISSIONS)) {
+        return true;
+    }
+    // Check if permission exists in user's permission list
+    return userPermissions.permissions.includes(permission);
+}
+
+// Client-side utility to get nav visibility from permissions
+function getNavVisibility(permissions: UserPermissions) {
+    const ADMIN_PERMISSIONS = "*";
+
+    // If admin, show everything
+    if (permissions.permissions.includes(ADMIN_PERMISSIONS)) {
+        return {
+            showDashboard: true,
+            showInvoices: true,
+            showBankStatements: true,
+            showOtherDocuments: true,
+            showHistory: true,
+            showRecycleBin: true,
+            showIntegration: true,
+            showUsers: true,
+            showRoles: true
+        };
+    }
+
+    return {
+        showDashboard: hasPermission(permissions, "dashboard.view"),
+        showInvoices: hasPermission(permissions, "invoices.view"),
+        showBankStatements: hasPermission(permissions, "bank.view"),
+        showOtherDocuments: hasPermission(permissions, "other.view"),
+        showHistory: hasPermission(permissions, "history.view"),
+        showRecycleBin: hasPermission(permissions, "recycle.view"),
+        showIntegration: hasPermission(permissions, "integration.view") || hasPermission(permissions, "integration.edit"),
+        showUsers: hasPermission(permissions, "users.view") || hasPermission(permissions, "users.create_edit"),
+        showRoles: hasPermission(permissions, "roles.view") || hasPermission(permissions, "roles.create_edit")
+    };
+}
+
 
 const mainNavItems = [
     {
         title: "Dashboard",
         href: "/dashboard",
         icon: LayoutDashboard,
+        permissionKey: "showDashboard"
     },
     {
         title: "Invoices & Receipts",
-        href: "/documents", // Active state usually implies this is the main view
+        href: "/documents",
         icon: FileText,
+        permissionKey: "showInvoices"
     },
     {
         title: "Bank & Card Statements",
         href: "/bank-statements",
         icon: CreditCard,
+        permissionKey: "showBankStatements"
     },
     {
         title: "Other Documents",
         href: "/other-documents",
         icon: Files,
+        permissionKey: "showOtherDocuments"
     },
     {
         title: "Upload History",
         href: "/history",
         icon: History,
+        permissionKey: "showHistory"
     },
     {
         title: "Recycle Bin",
         href: "/recycle-bin",
         icon: Trash2,
+        permissionKey: "showRecycleBin"
     },
     {
         title: "Integration Data",
         href: "/integration-data",
         icon: Settings,
+        permissionKey: "showIntegration"
+    },
+    {
+        title: "User Management",
+        href: "/users",
+        icon: Users,
+        permissionKey: "showUsers"
+    },
+    {
+        title: "Role Management",
+        href: "/roles",
+        icon: Shield,
+        permissionKey: "showRoles"
     },
 ];
 
-// const integrationItems = [
-//     {
-//         title: "Contacts",
-//         href: "/contacts",
-//         icon: Users,
-//     },
-//     {
-//         title: "Chart of Accounts",
-//         href: "/chart-of-accounts",
-//         icon: BookOpen,
-//     },
-//     {
-//         title: "Payment Methods",
-//         href: "/payment-methods",
-//         icon: CreditCard,
-//     },
-//     {
-//         title: "VAT/GST Rates",
-//         href: "/tax-rates",
-//         icon: Percent,
-//     },
-// ];
-
-export function Sidebar() {
+export function Sidebar({ mobile = false }: { mobile?: boolean }) {
     const pathname = usePathname();
     const { data: session } = useSession();
+    const [navVisibility, setNavVisibility] = useState({
+        showDashboard: true,
+        showInvoices: true,
+        showBankStatements: true,
+        showOtherDocuments: true,
+        showHistory: true,
+        showRecycleBin: true,
+        showIntegration: true,
+        showUsers: false,
+        showRoles: false
+    });
+
+    // Fetch permissions on mount and when session changes
+    useEffect(() => {
+        async function fetchPermissions() {
+            if (session?.user?.id) {
+                try {
+                    const permissions = await getUserPermissionsAction(session.user.id);
+                    const visibility = getNavVisibility(permissions);
+                    setNavVisibility(visibility);
+                } catch (error) {
+                    console.error("Failed to fetch permissions:", error);
+                }
+            }
+        }
+        fetchPermissions();
+    }, [session?.user?.id]);
+
+    const baseClasses = "bg-[#1e293b] text-white flex flex-col h-full overflow-hidden";
+    const desktopClasses = "w-64 fixed left-0 top-0 z-40 h-screen hidden lg:flex";
+    const mobileClasses = "w-full h-full flex";
+
+    // Filter navigation items based on permissions
+    const visibleNavItems = mainNavItems.filter(item => {
+        return navVisibility[item.permissionKey as keyof typeof navVisibility];
+    });
 
     return (
-        <aside className="w-64 bg-[#1e293b] text-white flex flex-col h-screen fixed left-0 top-0 z-40 overflow-hidden">
-            {/* Branding - Matching the dark theme in the image */}
+        <aside className={cn(baseClasses, mobile ? mobileClasses : desktopClasses)}>
+            {/* Branding */}
             <div className="p-6 border-b border-slate-700">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-green-500 rounded-lg flex items-center justify-center shadow-lg">
-                        {/* Simple Logo Placeholder based on image */}
                         <div className="text-black font-bold text-xl">eb</div>
                     </div>
                     <div>
@@ -89,16 +166,13 @@ export function Sidebar() {
 
             <div className="flex-1 overflow-y-auto py-4">
                 <nav className="space-y-1 px-3">
-                    {mainNavItems.map((item) => {
+                    {visibleNavItems.map((item) => {
                         const Icon = item.icon;
-                        // Exact match for dashboard, partial for others to handle query params
                         const isActive = item.href === "/dashboard"
                             ? pathname === "/dashboard"
                             : pathname === item.href || (pathname.startsWith("/documents") && item.href.includes("category") && pathname.includes(item.href.split("?")[1]));
 
-                        // Special case for "Invoices & Receipts" being active when on /documents without category
                         const isMainDocs = item.title === "Invoices & Receipts" && pathname === "/documents" && !pathname.includes("category");
-
                         const isSelected = isActive || isMainDocs;
 
                         return (
@@ -118,31 +192,6 @@ export function Sidebar() {
                         );
                     })}
                 </nav>
-
-                {/* <div className="mt-8 px-6 mb-2">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                        <span className="w-2 h-2 bg-slate-600 rounded-full"></span>
-                        Integration Data
-                    </p>
-                </div>
-
-                <nav className="space-y-1 px-3">
-                    {integrationItems.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                            <Link
-                                key={item.title}
-                                href={item.href}
-                                className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors"
-                            >
-                                <div className="min-w-5">
-                                    <div className="h-1.5 w-1.5 rounded-full border border-slate-500"></div>
-                                </div>
-                                {item.title}
-                            </Link>
-                        );
-                    })}
-                </nav> */}
             </div>
 
             {/* User Profile Footer */}

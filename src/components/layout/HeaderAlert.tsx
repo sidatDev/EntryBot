@@ -2,10 +2,11 @@
 
 import { AlertTriangle, X } from "lucide-react";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 
 export function HeaderAlert() {
     const [isVisible, setIsVisible] = useState(true);
-
+    const { data: session } = useSession();
     if (!isVisible) return null;
 
     return (
@@ -14,7 +15,7 @@ export function HeaderAlert() {
                 <div className="flex items-center gap-2 text-orange-700">
                     <AlertTriangle className="h-4 w-4" />
                     <p>
-                        A verification email has been sent to <span className="font-semibold">user@example.com</span>. Please check your email and complete email verification.
+                        A verification email has been sent to <span className="font-semibold">{session?.user?.email || "user@example.com"}</span>. Please check your email and complete email verification.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">

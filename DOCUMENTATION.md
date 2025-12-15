@@ -1,59 +1,107 @@
-**Target Page:** Integration Data (Accounting Software Connection)
 
-**Objective:** Design and implement the primary interface for managing third-party accounting software integrations (Xero, QuickBooks, API). The page must clearly display the current integration status, provide buttons for initiating connections, and list necessary integration tabs.
+---
+**Target Pages:**
+1.  User Management Dashboard
+2.  Role Management (Custom Role Creator)
+
+**Objective:** Design and implement a secure, intuitive module for Administrators to manage users, assign static roles (Admin, Client), and create/manage granular custom roles and permissions.
 
 ### 1. 📋 Core Functionality & Features
 
-* **Integration Management:** Allow users to connect to supported accounting software (Xero, QuickBooks) or a custom API.
-* **Status Display:** Show the current integration status (e.g., "No Integration").
-* **Configuration Tabs:** Provide navigation to related configuration areas: Contacts, Chart of Accounts, Payment Methods, and VAT/GST Rates.
-* **Integration Notes:** Display important informational notes regarding data extraction and export formats.
+* **User Lifecycle Management:** Ability to create, view, edit, and deactivate users.
+* **Role Assignment:** Simple mechanism for assigning one of the defined roles (Admin, Client, Custom Role) to a user.
+* **Custom Role Creation:** A dedicated interface for Admins to create new roles with highly granular permissions.
+* **Permission Mapping:** Map specific application features (menu items, buttons, data access) to roles.
 
-### 2. 🎨 UI Components & Layout
+### 2. 🎨 UI Components & Layout: User Management Dashboard
 
-#### A. Header and Navigation
+This page lists all active and inactive users and allows the Admin to manage them.
 
-* **Page Title:** The page must be clearly titled: **"Integration Data"**.
-* **Sidebar Menu:** The sidebar must highlight **"Integration Data"** as the active menu item.
-* **User Header:** Retain the standard header components (e.g., Verification Alert, `HS Welcome Hamza Sheikh`, Reset/Change).
+| Component | Label/Action | Functionality |
+| :--- | :--- | :--- |
+| **Primary Button** | `+ Add New User` | Opens a modal/form for user creation (Name, Email, Password, Role Assignment). |
+| **Search/Filter Bar** | `Search by Name or Email` | Efficiently locate users. |
+| **Table** | User List | Displays all users with the following columns: |
+| - | `Name` | |
+| - | `Email` | |
+| - | `Role` | Assigned role (Admin, Client, or Custom Role Name). |
+| - | `Status` | Active/Inactive. |
+| - | `Actions` | Icons for **Edit User Details** and **Deactivate/Activate User**. |
 
-#### B. Integration Configuration Tabs
+### 3. 🎨 UI Components & Layout: Role Management (Custom Role Creator)
 
-The primary navigation for this section is a horizontal set of tabs, starting with the current view:
+This page allows the Admin to define the permissions for custom roles.
 
-* **`Accounting Software Integration`** (Current View)
-* **`Contacts`**
-* **`Chart of Accounts`**
-* **`Payment Methods`**
-* **`VAT/GST Rates`**
+#### A. Role Creation Controls
 
-#### C. Integration Connectors Panel
+| Component | Label | Functionality |
+| :--- | :--- | :--- |
+| **Input Field** | `Role Name` | Text input for naming the new custom role (e.g., "Junior Bookkeeper"). |
+| **Primary Button** | `Save Role` | Persists the new role and its defined permissions. |
 
-This panel is the main focus, allowing users to select and initiate connection to their accounting software:
+#### B. Permission Definition Panel (Checklist/Tree View)
 
-* **Header:** `Select an accounting software for integration`.
-* **Connector Buttons:** Implement three distinct, clickable buttons for initiating connections:
-    * **Button 1:** `Connect to Xero`
-        * **Function:** Initiates the connection process to Xero (e.g., redirects to Xero OAuth flow).
-    * **Button 2:** `Connect to QuickBooks`
-        * **Function:** Initiates the connection process to QuickBooks (e.g., redirects to QuickBooks OAuth flow).
-    * **Button 3:** `Connect via API`
-        * **Function:** Opens a modal or new interface to configure a custom API connection.
+The core component is a structured checklist where Admins select the exact access level for the role. Permissions must align with the application's menu structure:
 
-#### D. Status Display
+| Permission Group (Menu Item) | Access Checkboxes (Read, Write, Delete) | Static Role Access |
+| :--- | :--- | :--- |
+| **Dashboard** | `View` | Admin, Client |
+| **Invoices & Receipts** | `View`, `Upload`, `Approve`, `Export` | Admin, Client |
+| **Bank & Card Statements** | `View`, `Upload`, `Bulk Edit`, `Export` | Admin, Client |
+| **Other Documents** | `View`, `Upload`, `Tagging`, `Edit Properties` | Admin, Client |
+| **Upload History** | `View` | Admin, Client |
+| **Recycle Bin** | `View`, `Restore`, `Permanent Delete` | Admin, Client |
+| **Integration Data** | `View`, `Edit Integration` | Admin, Client |
+| **User/Role Management** | `View Users`, `Create/Edit Users`, `Create/Edit Roles` | Admin Only |
+| **Settings (Contacts, Chart of Accounts, etc.)** | `View`, `Create/Edit` | Admin Only |
 
-* **Label:** `Status`.
-* **Value:** Currently displays `No Integration (Excel Output)`. This value must be dynamic and update based on the active connection (e.g., to "Connected to Xero").
+### 4. 🔒 Role-Based Access Control (RBAC) Logic
 
-#### E. Informational Notes (`<Note>` Block)
+The system must strictly adhere to the following access rules:
 
-A boxed or distinct section containing key guidelines for the user:
+| Role Name | Access Level / Scope | Notes |
+| :--- | :--- | :--- |
+| **Admin** | **Full Access to Everything** (Users, Roles, Configuration, and all Document Management). | Reserved for system owners/high-level control. |
+| **Client** | **Standard Document Access:** Access to the following main menu items: Invoices & Receipts, Bank and Card Statement, Other Documents, Upload history, Recycle Bin, and Integration Data. | Standard user/client access, focused on document workflow. |
+| **Custom User** | **Granular Permissions:** Access is determined *only* by the specific permissions granted when the custom role was created by the Admin. | This allows the Admin to define roles like "Approver" (View/Approve only) or "Uploader" (Upload/View only). |
 
-* **Note 1 (Export/Integration):** If exporting Invoices & Receipts from Receipt Bot to Xero or QuickBooks Online, users must use the relevant integration links above.
-* **Note 2 (Bank Statements):** Bank Statements data extraction is *only* for viewing. Users can download the data in compatible CSV/Excel formats.
-* **Note 3 (Invoices/Receipts without Integration):** If using accounting software other than Xero or QuickBooks Online, Invoice or Receipt data extraction is possible, but users must download data in compatible CSV/Excel formats.
+### 5. 💡 Design Notes
 
-### 3. 💡 Design Notes
+* **Usability:** The Custom Role Creator must use clear labels and a logical grouping (like the table above) to prevent Admins from misconfiguring roles.
+* **Security:** Access control logic must be enforced at the API level, not just the UI level. If a Custom User does not have access to a menu item, it must be hidden or disabled entirely.
+* **Prompting:** When an Admin creates a Custom Role, the system should allow them to select from the *entire* list of possible permissions, not just the Client's limited view.
 
-* **Button Styling:** The three main connector buttons (`Connect to Xero`, `Connect to QuickBooks`, `Connect via API`) should be prominently styled (e.g., using icons and distinct colors) to encourage interaction.
-* **Consistency:** The Integration configuration tabs must use the same styling and interaction as the main document status tabs found on other pages.
+---
+
+
+---
+
+### 1. Modal Specifications
+
+* **Title:** "Add New User"
+* **Action Buttons:** `Cancel` (Closes modal) and `Create User` (Submits form).
+* **Default State:** All fields should be clear and the default role should be set to "Client" or a placeholder requiring explicit selection.
+
+### 2. Form Fields and Validation
+
+The modal must contain the following fields. All fields marked with $\text{(*)}$ are mandatory.
+
+| Field Label | Input Type | Validation Rules | Notes |
+| :--- | :--- | :--- | :--- |
+| **Full Name** $\text{(*)}$ | Text Input | Required; Minimum 3 characters. | Used for user greeting (e.g., "Welcome Hamza Sheikh"). |
+| **Email Address** $\text{(*)}$ | Email Input | Required; Must be a valid email format (e.g., `user@domain.com`); Must be unique in the system. | Serves as the user's primary login ID. |
+| **Initial Password** $\text{(*)}$ | Password Input | Required; Minimum 8 characters; Must include upper and lower case letters, a number, and a special character (e.g., strong password policy). | The first password the user will use. |
+| **Confirm Password** $\text{(*)}$ | Password Input | Required; Must exactly match the **Initial Password** field. | For verification of the initial password. |
+| **Assign Role** $\text{(*)}$ | Dropdown Select | Required; Must select one option. | Options include: **Admin**, **Client**, and all **Custom Roles** created by the Admin. |
+| **Send Welcome Email** | Checkbox | Optional; Defaulted to checked. | If checked, an automated welcome email with login details is sent to the user's Email Address. |
+| **User Status** | Toggle Switch | Defaults to $\text{Active}$. | Allows the Admin to create a user profile that is immediately active or temporarily inactive. |
+
+### 3. Submission and Feedback
+
+* **Error Handling:** If any validation rule is violated, display an inline error message next to the corresponding field (e.g., "Email address already exists" or "Password is too weak"). The `Create User` button must remain disabled until all required fields are valid.
+* **Success Handling:**
+    1.  On successful submission, the modal should close.
+    2.  A success toast/notification should appear (e.g., "User [User Name] created successfully.").
+    3.  The new user should immediately appear in the **User Management Dashboard** table list with their assigned role and active status.
+
+---

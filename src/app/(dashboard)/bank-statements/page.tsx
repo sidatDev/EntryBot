@@ -5,9 +5,9 @@ import { StatusTabs } from "@/components/documents/StatusTabs";
 export default async function BankStatementsPage({
     searchParams,
 }: {
-    searchParams: { status?: string };
+    searchParams: Promise<{ status?: string }>;
 }) {
-    const status = searchParams.status || "ALL";
+    const { status = "ALL" } = await searchParams;
     const documents = await getBankStatements(status);
 
     return (

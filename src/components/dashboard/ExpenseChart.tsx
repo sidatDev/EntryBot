@@ -15,9 +15,6 @@ export function ExpenseChart({ data }: ExpenseChartProps) {
                     <h3 className="text-lg font-bold text-slate-800">Total Expense Per Month</h3>
                     <p className="text-xs text-slate-500 mt-1">Total expense per month for the top 10 suppliers.</p>
                 </div>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200">
-                    <Plus className="h-3 w-3" /> Add Business
-                </button>
             </div>
 
             <div className="flex-1 min-h-[300px] w-full">

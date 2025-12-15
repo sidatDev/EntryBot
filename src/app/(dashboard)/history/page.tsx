@@ -4,10 +4,11 @@ import { UploadHistoryTable } from "@/components/history/UploadHistoryTable";
 export default async function HistoryPage({
     searchParams,
 }: {
-    searchParams: { page?: string, search?: string };
+    searchParams: Promise<{ search?: string; page?: string }>;
 }) {
-    const page = Number(searchParams.page) || 1;
-    const search = searchParams.search || "";
+    const resolvedSearchParams = await searchParams;
+    const page = Number(resolvedSearchParams.page) || 1;
+    const search = resolvedSearchParams.search || "";
     const { documents, pagination } = await getUploadHistory(page, 25, search);
 
     return (

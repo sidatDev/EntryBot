@@ -99,12 +99,12 @@ export function DocumentList({ documents, isRecycleBin = false }: DocumentListPr
                         <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded text-sm font-medium hover:bg-blue-600">
                             <Edit className="h-4 w-4" /> Bulk Edit
                         </button>
-                        <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded text-sm font-medium hover:bg-blue-600">
+                        {/* <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded text-sm font-medium hover:bg-blue-600">
                             <Columns className="h-4 w-4" /> Columns
                         </button>
                         <button className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 rounded text-sm font-medium hover:bg-slate-200">
                             <ArrowRightLeft className="h-4 w-4" /> Transfer
-                        </button>
+                        </button> */}
                     </div>
                 </div>
             )}
@@ -115,9 +115,7 @@ export function DocumentList({ documents, isRecycleBin = false }: DocumentListPr
                 {/* We can wrap UploadModal trigger here or custom button */}
                 {!isRecycleBin && (
                     <>
-                        <div className="relative">
-                            <UploadModal /> {/* This usually renders a button, we might need to style it to match or accept className */}
-                        </div>
+
 
                         <button
                             onClick={handleExport}

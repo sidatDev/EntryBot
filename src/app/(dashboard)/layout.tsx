@@ -18,11 +18,11 @@ export default async function DashboardLayout({
 
     return (
         <div className="min-h-screen bg-slate-50/50">
-            <Sidebar />
-            <main className="pl-64 min-h-screen flex flex-col bg-slate-50/50">
+            <Sidebar /> {/* Desktop Sidebar (hidden on mobile via internal logic) */}
+            <main className="lg:pl-64 min-h-screen flex flex-col bg-slate-50/50 transition-all duration-300">
                 <TopHeader />
                 <HeaderAlert />
-                <div className="max-w-7xl mx-auto p-8 w-full">
+                <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 w-full">
                     {children}
                 </div>
             </main>

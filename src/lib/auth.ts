@@ -45,6 +45,11 @@ export const authOptions: NextAuthOptions = {
                     return null;
                 }
 
+                // Check if user is active
+                if (user.status !== "ACTIVE") {
+                    return null;
+                }
+
                 return {
                     id: user.id + "",
                     email: user.email,
@@ -62,15 +67,29 @@ export const authOptions: NextAuthOptions = {
                     ...session.user,
                     id: token.id,
                     role: token.role,
+                    customRoleId: token.customRoleId,
+                    customRoleName: token.customRoleName,
                 },
             };
         },
         async jwt({ token, user }) {
             if (user) {
+                // Fetch custom role name if exists
+                const dbUser = await prisma.user.findUnique({
+                    where: { id: user.id },
+                    include: {
+                        customRole: {
+                            select: { name: true }
+                        }
+                    }
+                });
+
                 return {
                     ...token,
                     id: user.id,
                     role: (user as any).role,
+                    customRoleId: dbUser?.customRoleId || null,
+                    customRoleName: dbUser?.customRole?.name || null,
                 };
             }
             return token;

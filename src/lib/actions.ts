@@ -6,6 +6,7 @@ import { writeFile, readFile, unlink } from "fs/promises";
 import { join } from "path";
 import { mkdir } from "fs/promises";
 import { PDFDocument } from "pdf-lib";
+import { hash } from "bcryptjs";
 
 export async function uploadDocument(formData: FormData) {
     const file = formData.get("file") as File;
@@ -581,4 +582,156 @@ export async function getUploadHistory(page: number = 1, limit: number = 25, sea
             limit
         }
     };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          USER & ROLE MANAGEMENT                            */
+/* -------------------------------------------------------------------------- */
+
+// --- USERS ---
+
+export async function getUsers(search?: string) {
+    const where: any = {};
+    if (search) {
+        where.OR = [
+            { name: { contains: search } },
+            { email: { contains: search } }
+        ];
+    }
+
+    return await prisma.user.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        include: {
+            customRole: {
+                select: {
+                    id: true,
+                    name: true
+                }
+            }
+        },
+    });
+}
+
+export async function createUser(data: {
+    name: string;
+    email: string;
+    password: string;
+    role: string;          // "ADMIN", "CLIENT", or "CUSTOM"
+    customRoleId?: string; // If role is "CUSTOM"
+    status?: string;       // "ACTIVE" or "INACTIVE"
+    sendWelcomeEmail?: boolean;
+}) {
+    // Check if email exists
+    const existing = await prisma.user.findUnique({ where: { email: data.email } });
+    if (existing) {
+        throw new Error("Email already exists");
+    }
+
+    // Hash password
+    const hashedPassword = await hash(data.password, 12);
+
+    // Determines generic role field
+    let genericRole = "SUBMITTER"; // Default
+    if (data.role === "ADMIN") genericRole = "ADMIN";
+    // For now, let's stick to existing schema values: SUBMITTER, APPROVER, ADMIN.
+
+    const user = await prisma.user.create({
+        data: {
+            name: data.name,
+            email: data.email,
+            password: hashedPassword,
+            role: genericRole,
+            customRoleId: data.customRoleId || null,
+            status: data.status || "ACTIVE",
+            integrationStatus: "NONE"
+        }
+    });
+
+    revalidatePath("/users");
+    return user;
+}
+
+export async function updateUser(userId: string, data: {
+    name?: string;
+    email?: string;
+    role?: string;
+    customRoleId?: string;
+    status?: string;
+    password?: string;
+}) {
+    const updateData: any = {};
+    if (data.name) updateData.name = data.name;
+    if (data.email) updateData.email = data.email;
+    if (data.status) updateData.status = data.status;
+    if (data.password) updateData.password = await hash(data.password, 12);
+
+    if (data.role) {
+        if (data.role === "ADMIN") {
+            updateData.role = "ADMIN";
+            updateData.customRoleId = null;
+        } else if (data.role === "CLIENT") {
+            updateData.role = "SUBMITTER";
+            updateData.customRoleId = null;
+        } else {
+            // Custom role
+            updateData.role = "SUBMITTER"; // Base access
+            if (data.customRoleId) updateData.customRoleId = data.customRoleId;
+        }
+    }
+
+    await prisma.user.update({
+        where: { id: userId },
+        data: updateData
+    });
+    revalidatePath("/users");
+}
+
+export async function toggleUserStatus(userId: string, status: string) {
+    await prisma.user.update({
+        where: { id: userId },
+        data: { status }
+    });
+    revalidatePath("/users");
+}
+
+// --- ROLES ---
+
+export async function getRoles() {
+    return await prisma.role.findMany({
+        orderBy: { name: "asc" }
+    });
+}
+
+export async function createRole(name: string, permissions: string[]) {
+    // Verify unique name
+    const existing = await prisma.role.findUnique({ where: { name } });
+    if (existing) throw new Error("Role name already exists");
+
+    await prisma.role.create({
+        data: {
+            name,
+            permissions: JSON.stringify(permissions) // Store Key[] as JSON
+        }
+    });
+    revalidatePath("/roles");
+}
+
+export async function updateRole(roleId: string, permissions: string[]) {
+    await prisma.role.update({
+        where: { id: roleId },
+        data: {
+            permissions: JSON.stringify(permissions)
+        }
+    });
+    revalidatePath("/roles");
+}
+
+export async function deleteRole(roleId: string) {
+    // Check usage
+    const usage = await prisma.user.count({ where: { customRoleId: roleId } });
+    if (usage > 0) throw new Error("Cannot delete role assigned to users");
+
+    await prisma.role.delete({ where: { id: roleId } });
+    revalidatePath("/roles");
 }
