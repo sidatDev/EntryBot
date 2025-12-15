@@ -126,11 +126,7 @@ export function BankStatementList({ documents, isRecycleBin = false }: BankState
                                         {doc.bankStatement?.displayName || doc.name}
                                     </td>
                                     <td className="p-4">
-                                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold
-                                            ${doc.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                                doc.status === 'PROCESSING' ? 'bg-amber-100 text-amber-700' :
-                                                    doc.status === 'UPLOADED' ? 'bg-blue-100 text-blue-700' :
-                                                        'bg-slate-100 text-slate-600'}`}>
+                                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${doc.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : doc.status === 'PROCESSING' ? 'bg-amber-100 text-amber-700' : doc.status === 'UPLOADED' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
                                             {doc.status}
                                         </span>
                                     </td>
