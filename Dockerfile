@@ -5,22 +5,20 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies and tools needed for building
-RUN apk add --no-cache libc6-compat python3 make g++ openssl
-
-# Copy package files
-COPY package*.json ./
-
-# Copy Prisma schema BEFORE npm ci (needed for postinstall script)
-COPY prisma ./prisma/
-
-# Install dependencies based on lock file
+# Install dependencies (only required for the build stage)
+# Use 'npm ci' for clean, repeatable dependency installs
+COPY package.json package-lock.json ./
 RUN npm ci
 
-# Copy the rest of the project (excluding files mentioned in .dockerignore)
-COPY . .
+# Environment variable to enable standalone mode for Next.js
+# This optimizes the build output for Docker
+ENV NEXT_TELEMETRY_DISABLED 1
+ENV STANDALONE_MODE true
 
-# Build Next.js application
+# Generate Prisma Client and build the Next.js app
+# The 'prisma generate' step MUST run before 'next build'
+# Next.js will use the output of 'prisma generate'
+RUN npx prisma generate
 RUN npm run build
 
 
