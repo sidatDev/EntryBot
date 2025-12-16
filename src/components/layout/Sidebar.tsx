@@ -83,30 +83,30 @@ const mainNavItems = [
         icon: CreditCard,
         permissionKey: "showBankStatements"
     },
-    {
-        title: "Other Documents",
-        href: "/other-documents",
-        icon: Files,
-        permissionKey: "showOtherDocuments"
-    },
-    {
-        title: "Upload History",
-        href: "/history",
-        icon: History,
-        permissionKey: "showHistory"
-    },
+    // {
+    //     title: "Other Documents",
+    //     href: "/other-documents",
+    //     icon: Files,
+    //     permissionKey: "showOtherDocuments"
+    // },
+    // {
+    //     title: "Upload History",
+    //     href: "/history",
+    //     icon: History,
+    //     permissionKey: "showHistory"
+    // },
     {
         title: "Recycle Bin",
         href: "/recycle-bin",
         icon: Trash2,
         permissionKey: "showRecycleBin"
     },
-    {
-        title: "Integration Data",
-        href: "/integration-data",
-        icon: Settings,
-        permissionKey: "showIntegration"
-    },
+    // {
+    //     title: "Integration Data",
+    //     href: "/integration-data",
+    //     icon: Settings,
+    //     permissionKey: "showIntegration"
+    // },
     {
         title: "User Management",
         href: "/users",
