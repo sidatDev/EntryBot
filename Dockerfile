@@ -5,20 +5,29 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies (only required for the build stage)
-# Use 'npm ci' for clean, repeatable dependency installs
+# Install dependencies and tools needed for building (including OpenSSL for Prisma)
+RUN apk add --no-cache libc6-compat python3 make g++ openssl
+
+# Copy package files
 COPY package.json package-lock.json ./
+
+# Copy Prisma schema BEFORE npm ci (needed for postinstall script)
+COPY prisma ./prisma/
+
+# Install dependencies based on lock file
 RUN npm ci
 
-# Environment variable to enable standalone mode for Next.js
-# This optimizes the build output for Docker
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV STANDALONE_MODE true
+# Copy the rest of the project (excluding files mentioned in .dockerignore)
+COPY . .
 
-# Generate Prisma Client and build the Next.js app
-# The 'prisma generate' step MUST run before 'next build'
-# Next.js will use the output of 'prisma generate'
+# Environment variable to enable standalone mode for Next.js
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV STANDALONE_MODE=true
+
+# Generate Prisma Client (explicitly, though postinstall might have done it)
 RUN npx prisma generate
+
+# Build the Next.js app
 RUN npm run build
 
 
@@ -39,7 +48,9 @@ RUN apk add --no-cache openssl
 # Copy the entire app build output from builder
 COPY --from=builder /app ./
 
-# Install ONLY production dependencies
+# Install ONLY production dependencies (cleaner/faster than copying everything)
+# Note: In standalone mode, we might not strictly need this if node_modules are bundled,
+# but it's safer for things like prisma client interaction scripts.
 RUN npm install --omit=dev --no-optional
 
 # Create a startup script that starts the production server
