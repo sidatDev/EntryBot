@@ -1,61 +1,58 @@
-# Build stage
-FROM node:20-alpine AS builder
+# ------------------------------
+# 1. Builder Stage
+# ------------------------------
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY prisma ./prisma/
+# Install dependencies and tools needed for building
+RUN apk add --no-cache libc6-compat python3 make g++
 
-# Install dependencies
+# Install dependencies based on lock file
+COPY package*.json ./
 RUN npm ci
 
-# Copy source code
+# Copy the rest of the project (excluding files mentioned in .dockerignore)
 COPY . .
 
-# Generate Prisma Client
-RUN npx prisma generate
-
-# Build the application
+# Generate Prisma client (if present) and build Next.js application
+RUN if [ -f "prisma/schema.prisma" ]; then npx prisma generate; fi
 RUN npm run build
 
-# Production stage
-FROM node:20-alpine AS runner
+
+
+# ------------------------------
+# 2. Runner / Production Stage
+# ------------------------------
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 
-# Set environment to production
 ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Copy the entire app build output from builder
+COPY --from=builder /app ./
 
-# Copy necessary files from builder
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Install ONLY production dependencies
+RUN npm install --omit=dev --no-optional
 
-# Create uploads directory
-RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public/uploads
+# Create a startup script that starts the production server
+RUN echo '#!/bin/sh' > start_server.sh && \
+    echo 'echo "Starting Next.js production server..." &&' >> start_server.sh && \
+    echo 'echo "Server will listen on $HOST:$PORT" &&' >> start_server.sh && \
+    echo 'exec npm start' >> start_server.sh && \
+    chmod +x start_server.sh
 
-# Set ownership
-RUN chown -R nextjs:nodejs /app
-
-# Switch to non-root user
-USER nextjs
-
-# Expose port
+# Next.js serves static assets from here
+ENV PORT=3000
 EXPOSE 3000
 
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+# Install OpenSSL for additional compatibility
+RUN apk add --no-cache openssl
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+# Set HOST to 0.0.0.0 to ensure the server listens on all interfaces
+ENV HOST=0.0.0.0
 
-# Start the application
-CMD ["node", "server.js"]
+# Start production server using the startup script
+CMD ["./start_server.sh"]
