@@ -2,11 +2,10 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { writeFile, readFile, unlink } from "fs/promises";
-import { join } from "path";
-import { mkdir } from "fs/promises";
 import { PDFDocument } from "pdf-lib";
 import { hash } from "bcryptjs";
+
+import { uploadToS3, deleteFromS3, getFileBufferFromS3 } from "./s3";
 
 export async function uploadDocument(formData: FormData) {
     const file = formData.get("file") as File;
@@ -20,19 +19,8 @@ export async function uploadDocument(formData: FormData) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Ensure uploads directory exists
-    const uploadDir = join(process.cwd(), "public", "uploads");
-    try {
-        await mkdir(uploadDir, { recursive: true });
-    } catch (e) {
-        // Ignore if exists
-    }
-
-    const fileName = `${Date.now()}-${file.name}`;
-    const filePath = join(uploadDir, fileName);
-    const publicUrl = `/uploads/${fileName}`;
-
-    await writeFile(filePath, buffer);
+    // Upload to S3
+    const publicUrl = await uploadToS3(buffer, file.name, file.type);
 
     await prisma.document.create({
         data: {
@@ -43,6 +31,7 @@ export async function uploadDocument(formData: FormData) {
             userId: userId,
             status: "UPLOADED",
             category: category,
+            source: "WEB_UPLOAD" // Add default source
         },
     });
 
@@ -68,25 +57,18 @@ export async function mergeDocuments(documentIds: string[], userId: string) {
     const mergedPdf = await PDFDocument.create();
 
     for (const doc of documents) {
-        // Resolve absolute path
-        const relativePath = doc.url.startsWith("/") ? doc.url.slice(1) : doc.url;
-        const filePath = join(process.cwd(), "public", relativePath);
-
-        const pdfBytes = await readFile(filePath);
+        // Fetch from S3 instead of local FS
+        const pdfBytes = await getFileBufferFromS3(doc.url);
         const pdf = await PDFDocument.load(pdfBytes);
         const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
         copiedPages.forEach((page) => mergedPdf.addPage(page));
     }
 
     const pdfBytes = await mergedPdf.save();
+    const buffer = Buffer.from(pdfBytes);
 
-    // Save new file
-    const uploadDir = join(process.cwd(), "public", "uploads");
-    const fileName = `merged-${Date.now()}.pdf`;
-    const filePath = join(uploadDir, fileName);
-    const publicUrl = `/uploads/${fileName}`;
-
-    await writeFile(filePath, pdfBytes);
+    // Upload merged file to S3
+    const publicUrl = await uploadToS3(buffer, "Merged Document.pdf", "application/pdf");
 
     // Create new document record
     await prisma.document.create({
@@ -97,7 +79,8 @@ export async function mergeDocuments(documentIds: string[], userId: string) {
             type: "PDF",
             userId: userId,
             status: "UPLOADED",
-            category: documents[0].category // Inherit category from first
+            category: documents[0].category,
+            source: "MERGE_OPERATION"
         }
     });
 
@@ -108,36 +91,32 @@ export async function splitDocument(documentId: string) {
     const doc = await prisma.document.findUnique({ where: { id: documentId } });
     if (!doc || doc.type !== "PDF") throw new Error("Document not found or not PDF");
 
-    const relativePath = doc.url.startsWith("/") ? doc.url.slice(1) : doc.url;
-    const filePath = join(process.cwd(), "public", relativePath);
-
-    const pdfBytes = await readFile(filePath);
+    const pdfBytes = await getFileBufferFromS3(doc.url);
     const pdf = await PDFDocument.load(pdfBytes);
     const numPages = pdf.getPageCount();
 
     if (numPages <= 1) throw new Error("Document has only 1 page");
-
-    const uploadDir = join(process.cwd(), "public", "uploads");
 
     for (let i = 0; i < numPages; i++) {
         const subPdf = await PDFDocument.create();
         const [page] = await subPdf.copyPages(pdf, [i]);
         subPdf.addPage(page);
         const subBytes = await subPdf.save();
+        const buffer = Buffer.from(subBytes);
 
-        const fileName = `split-${doc.name}-${i + 1}-${Date.now()}.pdf`;
-        const subFilePath = join(uploadDir, fileName);
-        await writeFile(subFilePath, subBytes);
+        const fileName = `${doc.name} - Page ${i + 1}`;
+        const publicUrl = await uploadToS3(buffer, `${fileName}.pdf`, "application/pdf");
 
         await prisma.document.create({
             data: {
-                name: `${doc.name} - Page ${i + 1}`,
-                url: `/uploads/${fileName}`,
+                name: fileName,
+                url: publicUrl,
                 size: subBytes.length,
                 type: "PDF",
                 userId: doc.userId,
                 status: "UPLOADED",
-                category: doc.category
+                category: doc.category,
+                source: "SPLIT_OPERATION"
             }
         });
     }
@@ -223,14 +202,8 @@ export async function permanentDeleteDocument(id: string) {
     const doc = await prisma.document.findUnique({ where: { id } });
     if (!doc) return;
 
-    // Delete file from disk
-    const relativePath = doc.url.startsWith("/") ? doc.url.slice(1) : doc.url;
-    const filePath = join(process.cwd(), "public", relativePath);
-    try {
-        await unlink(filePath);
-    } catch (e) {
-        console.error("Failed to delete file:", e);
-    }
+    // Delete file from S3
+    await deleteFromS3(doc.url);
 
     // Delete invoices first to avoid relation errors (if not cascaded)
     await prisma.invoice.deleteMany({ where: { documentId: id } });
