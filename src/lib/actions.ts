@@ -13,7 +13,17 @@ export async function uploadDocument(formData: FormData) {
     const userId = formData.get("userId") as string;
     const category = (formData.get("category") as string) || "GENERAL";
 
-    // ... (existing validation)
+    console.log("UPLOAD STARTED:", file?.name, userId);
+
+    if (!file || !userId) {
+        console.error("UPLOAD ERROR: Missing file or userId");
+        throw new Error("Missing file or userId");
+    }
+
+    // Basic validation
+    if (file.size > 10 * 1024 * 1024) throw new Error("File size limit is 10MB");
+    const allowedTypes = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
+    if (!allowedTypes.includes(file.type)) throw new Error("Invalid file type");
 
     // BILLING: Check if user's organization has credits
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { organizationId: true } });
@@ -26,7 +36,24 @@ export async function uploadDocument(formData: FormData) {
         }
     }
 
-    // ... (rest of upload logic)
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const publicUrl = await uploadToS3(buffer, file.name, file.type);
+
+    // Create DB Record
+    await prisma.document.create({
+        data: {
+            name: file.name,
+            url: publicUrl,
+            size: file.size,
+            type: file.type === "application/pdf" ? "PDF" : "IMAGE",
+            userId: userId,
+            status: "UPLOADED",
+            category: category,
+            source: "UPLOAD"
+        }
+    });
+
+    revalidatePath("/documents");
 }
 
 // ... 

@@ -38,11 +38,17 @@ export function UploadZone({ category = "GENERAL" }: UploadZoneProps) {
                 formData.append("file", file);
                 formData.append("userId", (session?.user as any)?.id);
                 formData.append("category", category);
+                console.log("Client: Uploading...", file.name);
                 await uploadDocument(formData);
+                console.log("Client: Upload complete");
             }
             setFiles([]);
+            // alert("Upload Successful!");
+            // Refresh to show new document in list if applicable
+            window.location.reload();
         } catch (error) {
             console.error("Upload failed", error);
+            alert("Upload Failed: " + (error as Error).message);
         } finally {
             setUploading(false);
         }
