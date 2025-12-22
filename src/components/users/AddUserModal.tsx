@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, Check, Loader2 } from "lucide-react";
 import { createUser } from "@/lib/actions";
 import { useRouter } from "next/navigation";
+import { Role } from "@prisma/client";
 
 // Define interface for Organizations
 interface Organization {
