@@ -33,7 +33,7 @@ interface Organization {
 }
 
 interface AddUserModalProps {
-    customRoles: Role[];
+    customRoles: { id: string; name: string }[];
     organizations: Organization[];
 }
 
