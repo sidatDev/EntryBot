@@ -25,17 +25,18 @@ import { Plus, Check, Loader2 } from "lucide-react";
 import { createUser } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 
-// Define interface for Roles
-interface Role {
+// Define interface for Organizations
+interface Organization {
     id: string;
     name: string;
 }
 
 interface AddUserModalProps {
     customRoles: Role[];
+    organizations: Organization[];
 }
 
-export function AddUserModal({ customRoles }: AddUserModalProps) {
+export function AddUserModal({ customRoles, organizations }: AddUserModalProps) {
     const router = useRouter();
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -48,6 +49,7 @@ export function AddUserModal({ customRoles }: AddUserModalProps) {
         confirmPassword: "",
         role: "CLIENT", // Default
         customRoleId: "",
+        organizationId: "",
         status: true, // true = ACTIVE
         sendWelcomeEmail: true
     });
@@ -90,6 +92,7 @@ export function AddUserModal({ customRoles }: AddUserModalProps) {
                 password: formData.password,
                 role: formData.role,
                 customRoleId: formData.customRoleId,
+                organizationId: formData.organizationId,
                 status: formData.status ? "ACTIVE" : "INACTIVE",
                 sendWelcomeEmail: formData.sendWelcomeEmail
             });
@@ -103,6 +106,7 @@ export function AddUserModal({ customRoles }: AddUserModalProps) {
                 confirmPassword: "",
                 role: "CLIENT",
                 customRoleId: "",
+                organizationId: "",
                 status: true,
                 sendWelcomeEmail: true
             });
@@ -182,6 +186,25 @@ export function AddUserModal({ customRoles }: AddUserModalProps) {
                                 onChange={handleChange}
                             />
                         </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Organization</Label>
+                        <Select
+                            value={formData.organizationId}
+                            onValueChange={(val) => setFormData(prev => ({ ...prev, organizationId: val }))}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select Organization (Optional)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {organizations.map(org => (
+                                    <SelectItem key={org.id} value={org.id}>
+                                        {org.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="space-y-2">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Settings, LogOut, User, ShoppingCart, TrendingUp, History, Trash2, CreditCard, Files, Users, BookOpen, Percent, Shield, ChevronDown } from "lucide-react";
+import { LayoutDashboard, FileText, Settings, LogOut, User, ShoppingCart, TrendingUp, History, Trash2, CreditCard, Files, Users, BookOpen, Percent, Shield, ChevronDown, Building } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
@@ -34,7 +34,8 @@ function getNavVisibility(permissions: UserPermissions) {
             showRecycleBin: true,
             showIntegration: true,
             showUsers: true,
-            showRoles: true
+            showRoles: true,
+            showOrganizations: true
         };
     }
 
@@ -47,16 +48,23 @@ function getNavVisibility(permissions: UserPermissions) {
         showRecycleBin: hasPermission(permissions, "recycle.view"),
         showIntegration: hasPermission(permissions, "integration.view") || hasPermission(permissions, "integration.edit"),
         showUsers: hasPermission(permissions, "users.view") || hasPermission(permissions, "users.create_edit"),
-        showRoles: hasPermission(permissions, "roles.view") || hasPermission(permissions, "roles.create_edit")
+        showRoles: hasPermission(permissions, "roles.view") || hasPermission(permissions, "roles.create_edit"),
+        showOrganizations: hasPermission(permissions, "org.manage") || hasPermission(permissions, "org.view")
     };
 }
 
 
 const mainNavItems = [
     {
+        title: "The Hub",
+        href: "/hub",
+        icon: LayoutDashboard, // Or another icon resembling a command center
+        permissionKey: "showDashboard" // Everyone with dashboard access sees the hub? Or specific permission.
+    },
+    {
         title: "Dashboard",
         href: "/dashboard",
-        icon: LayoutDashboard,
+        icon: TrendingUp, // Identifying generic dashboard with graph icon
         permissionKey: "showDashboard"
     },
     {
@@ -83,35 +91,41 @@ const mainNavItems = [
         icon: CreditCard,
         permissionKey: "showBankStatements"
     },
-    // {
-    //     title: "Other Documents",
-    //     href: "/other-documents",
-    //     icon: Files,
-    //     permissionKey: "showOtherDocuments"
-    // },
-    // {
-    //     title: "Upload History",
-    //     href: "/history",
-    //     icon: History,
-    //     permissionKey: "showHistory"
-    // },
+    {
+        title: "Other Documents",
+        href: "/other-documents",
+        icon: Files,
+        permissionKey: "showOtherDocuments"
+    },
+    {
+        title: "Upload History",
+        href: "/history",
+        icon: History,
+        permissionKey: "showHistory"
+    },
     {
         title: "Recycle Bin",
         href: "/recycle-bin",
         icon: Trash2,
         permissionKey: "showRecycleBin"
     },
-    // {
-    //     title: "Integration Data",
-    //     href: "/integration-data",
-    //     icon: Settings,
-    //     permissionKey: "showIntegration"
-    // },
+    {
+        title: "Integration Data",
+        href: "/integration-data",
+        icon: Settings,
+        permissionKey: "showIntegration"
+    },
     {
         title: "User Management",
         href: "/users",
         icon: Users,
         permissionKey: "showUsers"
+    },
+    {
+        title: "Organizations",
+        href: "/super-admin/organizations",
+        icon: Building,
+        permissionKey: "showOrganizations"
     },
     {
         title: "Role Management",
@@ -133,7 +147,8 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
         showRecycleBin: true,
         showIntegration: true,
         showUsers: false,
-        showRoles: false
+        showRoles: false,
+        showOrganizations: false,
     });
     const [expandedItems, setExpandedItems] = useState<string[]>(["Invoices & Receipts"]); // Default expanded
 

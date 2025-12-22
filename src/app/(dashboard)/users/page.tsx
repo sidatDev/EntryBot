@@ -1,4 +1,5 @@
 import { getUsers, getRoles } from "@/lib/actions";
+import { getOrganizations } from "@/lib/actions/organization";
 import { UserListTable } from "@/components/users/UserListTable";
 import { AddUserModal } from "@/components/users/AddUserModal";
 
@@ -10,9 +11,11 @@ export default async function UsersPage({
     const { search } = await searchParams;
     const users = await getUsers(search);
     const roles = await getRoles();
+    const { data: organizations } = await getOrganizations(); // Fetch all for dropdown
 
     // Map roles for the modal
     const customRoles = roles.map(r => ({ id: r.id, name: r.name }));
+    const orgOptions = organizations?.map(o => ({ id: o.id, name: o.name })) || [];
 
     return (
         <div className="space-y-6">
@@ -33,7 +36,7 @@ export default async function UsersPage({
                         />
                     </form>
                 </div>
-                <AddUserModal customRoles={customRoles} />
+                <AddUserModal customRoles={customRoles} organizations={orgOptions} />
             </div>
 
             <UserListTable users={users} customRoles={customRoles} />

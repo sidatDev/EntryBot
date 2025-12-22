@@ -275,12 +275,20 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
                                             <td className="px-4 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     {!isRecycleBin && (
-                                                        <Link
-                                                            href={`/documents/${doc.id}/process`}
-                                                            className="px-3 py-1 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 text-xs font-semibold flex items-center gap-1"
-                                                        >
-                                                            <Edit className="h-3 w-3" /> Approve
-                                                        </Link>
+                                                        <>
+                                                            <button
+                                                                className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 text-xs font-semibold"
+                                                                title="Assign to Me"
+                                                            >
+                                                                Claim
+                                                            </button>
+                                                            <Link
+                                                                href={`/documents/${doc.id}/process`}
+                                                                className="px-3 py-1 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 text-xs font-semibold flex items-center gap-1"
+                                                            >
+                                                                <Edit className="h-3 w-3" /> Process
+                                                            </Link>
+                                                        </>
                                                     )}
                                                     {isRecycleBin ? (
                                                         <button

@@ -10,52 +10,107 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- ORGANIZATION HIERARCHY ---
+model Organization {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  type        String   @default("CHILD_CLIENT") // MASTER_CLIENT, CHILD_CLIENT, INTERNAL
+  
+  // Hierarchy
+  parentId    String?
+  parent      Organization? @relation("OrgHierarchy", fields: [parentId], references: [id])
+  children    Organization[] @relation("OrgHierarchy")
+
+  // Settings & Credits
+  status      String   @default("ACTIVE") // ACTIVE, TRIAL, BLOCKED
+  credits     Int      @default(0) // Available processing credits
+  
+  users       User[]
+  documents   Document[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   password  String
   name      String?
-  role      String   @default("SUBMITTER") // SUBMITTER, APPROVER, ADMIN
-  integrationStatus String @default("NONE") // NONE, XERO, QUICKBOOKS
   
-  status       String  @default("ACTIVE") // ACTIVE, INACTIVE
+  // Improved Role System
+  role      String   @default("SUBMITTER") // Legacy fallback
+  
+  // Organization Link
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  
+  // Custom Role (Granular Permissions)
   customRoleId String?
   customRole   Role?   @relation(fields: [customRoleId], references: [id])
 
+  status       String  @default("ACTIVE") // ACTIVE, INACTIVE
+  integrationStatus String @default("NONE") // NONE, XERO, QUICKBOOKS
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  lastLogin DateTime?
 
   submittedDocuments   Document[] @relation("DocumentSubmitter")
   approvedDocuments    Document[] @relation("DocumentApprover")
+  auditLogs            AuditLog[]
 }
 
 model Role {
   id          String   @id @default(cuid())
-  name        String   @unique
+  name        String   @unique // SUPER_ADMIN, MASTER_ADMIN, DATA_ENTRY, etc.
   description String?
-  permissions String   // JSON string of permissions
+  permissions String   // JSON: ["doc.create", "org.view", "user.manage"]
+  isSystem    Boolean  @default(false) // System roles cannot be deleted
+  
   users       User[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String   // USER_LOGIN, DOC_UPLOAD, DOC_DELETE
+  details   String?  // JSON details
+  ipAddress String?
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  createdAt DateTime @default(now())
+}
+
+// --- DOCUMENT MANAGEMENT ---
 model Document {
   id        String   @id @default(cuid())
   name      String
-  url       String   // Path to file or blob URL
+  url       String   
   size      Int
   type      String   // PDF, IMG
-  category  String   @default("GENERAL") // SALES, PURCHASE, GENERAL
-  extractedText String? // Raw OCR text
-  status    String   @default("UPLOADED") // UPLOADED, PROCESSING, PENDING_APPROVAL, APPROVED, REJECTED, DELETED
-  source    String   @default("WEB")      // WEB, MOBILE, EMAIL
-
+  category  String   @default("GENERAL") 
+  extractedText String? 
+  status    String   @default("UPLOADED") // UPLOADED, PENDING_ENTRY, PROCESSING, QA_REVIEW, COMPLETED, REJECTED
+  source    String   @default("WEB")      
+  
+  // Ownership
   userId    String
   user      User     @relation(fields: [userId], references: [id], name: "DocumentSubmitter")
+  
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
 
-  // Approval workflow fields
-  approvalStatus   String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  // Workflow
+  assignedToId   String?  // User ID of Data Entry person processing this
+  qaStatus       String   @default("NONE") // NONE, PASSED, FAILED
+
+  // Approval Legacy
+  approvalStatus   String   @default("PENDING") 
   approverId       String?
   approver         User?    @relation(fields: [approverId], references: [id], name: "DocumentApprover", onDelete: SetNull)
   approvalDate     DateTime?
@@ -64,13 +119,12 @@ model Document {
 
   invoices       Invoice[]
   bankStatement  BankStatement?
-  
   tags           Tag[]
   notes          String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  deletedAt DateTime? // For soft delete functionality
+  deletedAt DateTime?
 }
 
 model Invoice {
@@ -90,7 +144,6 @@ model Invoice {
   totalAmount   Float?
   currency      String   @default("USD")
 
-  // New fields for Enhanced Document Table
   paymentMethod      String?
   baseCurrencyAmount Float?
   exchangeRate       Float?   @default(1.0)
@@ -120,7 +173,7 @@ model LineItem {
 model BankStatement {
   id            String   @id @default(cuid())
   displayName   String?
-  statementType String   @default("BANK") // BANK, CARD
+  statementType String   @default("BANK")
   
   accountInfo   String?
   last4Digits   String?
@@ -129,7 +182,7 @@ model BankStatement {
   startDate     DateTime?
   endDate       DateTime?
   
-  status        String   @default("PROCESSING") // PROCESSING, PROCESSED, EXPORTED
+  status        String   @default("PROCESSING")
   
   documentId    String   @unique
   document      Document @relation(fields: [documentId], references: [id])

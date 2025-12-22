@@ -4,12 +4,12 @@ import { DocumentList } from "@/components/documents/DocumentList";
 export default async function DocumentsPage({
     searchParams,
 }: {
-    searchParams: Promise<{ category?: string }>;
+    searchParams: Promise<{ category?: string; assignedTo?: string }>;
 }) {
-    const { category } = await searchParams;
+    const { category, assignedTo } = await searchParams;
 
     // Fetch documents based on category
-    const documents = await getDocuments(category);
+    const documents = await getDocuments(category, undefined, assignedTo);
 
     // Determine page title based on category
     const pageTitle = category === "SALES_INVOICE"

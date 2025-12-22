@@ -126,7 +126,7 @@ export async function splitDocument(documentId: string) {
 
 // --- DOCUMENTS ---
 
-export async function getDocuments(category?: string, status?: string) {
+export async function getDocuments(category?: string, status?: string, assignedToId?: string) {
     const where: any = {
         deletedAt: null,
     };
@@ -141,6 +141,11 @@ export async function getDocuments(category?: string, status?: string) {
     // Filter by status if provided
     if (status) {
         where.status = status;
+    }
+
+    // Filter by assignee
+    if (assignedToId) {
+        where.assignedToId = assignedToId;
     }
 
     return await prisma.document.findMany({
@@ -587,6 +592,12 @@ export async function getUsers(search?: string) {
                     id: true,
                     name: true
                 }
+            },
+            organization: {
+                select: {
+                    id: true,
+                    name: true
+                }
             }
         },
     });
@@ -598,6 +609,7 @@ export async function createUser(data: {
     password: string;
     role: string;          // "ADMIN", "CLIENT", or "CUSTOM"
     customRoleId?: string; // If role is "CUSTOM"
+    organizationId?: string; // Optional organization assignment
     status?: string;       // "ACTIVE" or "INACTIVE"
     sendWelcomeEmail?: boolean;
 }) {
@@ -622,6 +634,7 @@ export async function createUser(data: {
             password: hashedPassword,
             role: genericRole,
             customRoleId: data.customRoleId || null,
+            organizationId: data.organizationId || null,
             status: data.status || "ACTIVE",
             integrationStatus: "NONE"
         }
@@ -636,6 +649,7 @@ export async function updateUser(userId: string, data: {
     email?: string;
     role?: string;
     customRoleId?: string;
+    organizationId?: string;
     status?: string;
     password?: string;
 }) {
@@ -643,6 +657,7 @@ export async function updateUser(userId: string, data: {
     if (data.name) updateData.name = data.name;
     if (data.email) updateData.email = data.email;
     if (data.status) updateData.status = data.status;
+    if (data.organizationId !== undefined) updateData.organizationId = data.organizationId;
     if (data.password) updateData.password = await hash(data.password, 12);
 
     if (data.role) {

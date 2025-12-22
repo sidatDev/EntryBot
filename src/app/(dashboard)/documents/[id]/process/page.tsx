@@ -84,11 +84,11 @@ export default async function ProcessPage({ params }: { params: Promise<{ id: st
 
             {/* Split View */}
             <div className="flex-1 flex overflow-hidden">
-                <div className="w-1/2 h-full border-r border-slate-200 bg-white overflow-hidden">
-                    <InvoiceForm documentId={document.id} documentUrl={document.url} />
-                </div>
-                <div className="w-1/2 h-full bg-slate-100 overflow-hidden">
+                <div className="w-1/2 h-full bg-slate-100 overflow-hidden border-r border-slate-200">
                     <DocumentViewer url={document.url} type={document.type} />
+                </div>
+                <div className="w-1/2 h-full bg-white overflow-hidden">
+                    <InvoiceForm documentId={document.id} documentUrl={document.url} />
                 </div>
             </div>
         </div>
