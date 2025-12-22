@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { User, CreditCard, Users, Settings as SettingsIcon } from "lucide-react";
 import { useSession } from "next-auth/react";
+import AuditLogViewer from "@/components/audit/AuditLogViewer";
 
 // Placeholder components
 function ProfileTab() {
@@ -106,6 +107,7 @@ function TeamTab() {
 }
 
 export default function SettingsPage() {
+    const { data: session } = useSession();
     const [activeTab, setActiveTab] = useState("profile");
 
     const tabs = [
@@ -130,8 +132,8 @@ export default function SettingsPage() {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === tab.id
-                                            ? "bg-blue-50 text-blue-700"
-                                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                        ? "bg-blue-50 text-blue-700"
+                                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                                         }`}
                                 >
                                     <Icon size={18} />
@@ -147,9 +149,19 @@ export default function SettingsPage() {
                     {activeTab === "profile" && <ProfileTab />}
                     {activeTab === "subscription" && <SubscriptionTab />}
                     {activeTab === "team" && <TeamTab />}
+
                     {activeTab === "general" && (
-                        <div className="bg-white p-6 rounded-xl border border-gray-200 text-gray-500">
-                            General settings content coming soon...
+                        <div className="space-y-6">
+                            <div className="bg-white p-6 rounded-xl border border-gray-200">
+                                <h3 className="text-xl font-bold mb-4">General Settings</h3>
+                                <p className="text-gray-500">Organization details and preferences.</p>
+                                {/* Settings forms would go here */}
+                            </div>
+
+                            {/* Audit Log Section */}
+                            {(session?.user as any)?.organizationId && (
+                                <AuditLogViewer organizationId={(session?.user as any).organizationId} />
+                            )}
                         </div>
                     )}
                 </div>

@@ -1,22 +1,61 @@
 import { getDashboardStats } from "@/lib/actions";
 import SupervisorStats from "@/components/dashboard/SupervisorStats";
+import MasterClientView from "@/components/dashboard/MasterClientView";
+import ChildClientView from "@/components/dashboard/ChildClientView";
 import { StatusWidget } from "@/components/dashboard/StatusWidget";
 import { ExpenseChart } from "@/components/dashboard/ExpenseChart";
 import { BookkeepingInfo } from "@/components/dashboard/BookkeepingInfo";
+import { getServerSession } from "next-auth"; // Or get current user action
+import { prisma } from "@/lib/prisma"; // Direct access since page is server component
+import { authOptions } from "@/lib/auth";
 
 export default async function DashboardPage() {
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+
+    if (!userId) return <div>Please log in</div>;
+
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { organization: true }
+    });
+
+    if (!user?.organization) return <div>No Organization Found</div>;
+
+    const orgType = user.organization.type;
+    const orgId = user.organization.id;
+
+    // View Logic
+    if (orgType === "MASTER") {
+        return (
+            <div className="p-8">
+                <h1 className="text-3xl font-bold text-gray-900 mb-8">Master Dashboard</h1>
+                <MasterClientView organizationId={orgId} />
+            </div>
+        );
+    }
+
+    if (orgType === "CHILD") {
+        return (
+            <div className="p-8">
+                <ChildClientView organizationId={orgId} />
+            </div>
+        );
+    }
+
+    // Default: INTERNAL / Admin View (Existing Dashboard)
     const stats = await getDashboardStats();
 
     return (
         <div className="p-8">
             <div className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+                <h1 className="text-3xl font-bold text-gray-900">Command Center</h1>
                 {/* Placeholder for date filter */}
             </div>
 
             {/* SUPERVISOR / ADMIN SECTION */}
             <div className="mb-8">
-                <SupervisorStats organizationId="entrybot-internal" />
+                <SupervisorStats organizationId={orgId} />
                 {/* Note: In real app, get org ID from session */}
             </div>
 
