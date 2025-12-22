@@ -52,7 +52,7 @@ export function StatusWidget({ title, description, processedCount, totalCount = 
                 </div>
             </div>
 
-            <div className="mt-auto grid grid-cols-2 gap-3 pt-4 border-t border-slate-100">
+            <div className="mt-auto gap-3 pt-4 border-t border-slate-100">
                 {/* Upload Button */}
                 <div className="col-span-1">
                     {/* We might need to adjust UploadModal to fit in small button or just wrap it */}

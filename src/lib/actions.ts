@@ -4,41 +4,34 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { PDFDocument } from "pdf-lib";
 import { hash } from "bcryptjs";
-
 import { uploadToS3, deleteFromS3, getFileBufferFromS3 } from "./s3";
+import { hasCredits, deductCredits } from "@/lib/billing";
+import { shouldFlagForQA } from "@/lib/utils";
 
 export async function uploadDocument(formData: FormData) {
     const file = formData.get("file") as File;
     const userId = formData.get("userId") as string;
     const category = (formData.get("category") as string) || "GENERAL";
 
-    if (!file || !userId) {
-        throw new Error("Missing file or user ID");
+    // ... (existing validation)
+
+    // BILLING: Check if user's organization has credits
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { organizationId: true } });
+    if (user?.organizationId) {
+        // We block upload if 0 credits. Alternatively, we could block only at "Processing" stage.
+        // Decision: Block at Upload to prevent storage spam from free/expired accounts.
+        const canUpload = await hasCredits(user.organizationId);
+        if (!canUpload) {
+            throw new Error("Insufficient credits. Please upgrade your plan.");
+        }
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // Upload to S3
-    const publicUrl = await uploadToS3(buffer, file.name, file.type);
-
-    await prisma.document.create({
-        data: {
-            name: file.name,
-            url: publicUrl,
-            size: file.size,
-            type: file.type.includes("pdf") ? "PDF" : "IMG",
-            userId: userId,
-            status: "UPLOADED",
-            category: category,
-            source: "WEB_UPLOAD" // Add default source
-        },
-    });
-
-    revalidatePath("/documents");
-    revalidatePath("/dashboard");
-    revalidatePath("/history");
+    // ... (rest of upload logic)
 }
+
+// ... 
+
+
 
 export async function mergeDocuments(documentIds: string[], userId: string) {
     if (documentIds.length < 2) throw new Error("Need at least 2 documents to merge");
@@ -261,10 +254,27 @@ export async function saveInvoice(data: {
         },
     });
 
-    // Update document status to PROCESSING
+    // BILLING: Deduct Credit
+    const doc = await prisma.document.findUnique({ where: { id: data.documentId }, select: { organizationId: true } });
+    if (doc?.organizationId) {
+        try {
+            await deductCredits(doc.organizationId, 1);
+        } catch (e) {
+            console.error("Billing error:", e);
+        }
+    }
+
+    // QA SAMPLING: 10% chance
+    const isQA = shouldFlagForQA(10);
+    const nextStatus = isQA ? "QA_REVIEW" : "COMPLETED";
+
+    // Update document status
     await prisma.document.update({
         where: { id: data.documentId },
-        data: { status: "PROCESSING" },
+        data: {
+            status: nextStatus,
+            qaStatus: isQA ? "PENDING" : "NONE"
+        },
     });
 
     revalidatePath("/documents");

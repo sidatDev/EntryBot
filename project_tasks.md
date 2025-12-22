@@ -4,39 +4,39 @@
 **Goal:** Enable full Data Entry operations within a hierarchical client structure immediately.
 
 ### 1.1 Infrastructure & Hierarchy Setup
-- [ ] **Database Schema Updates**
-    - [ ] Create `Organization` model (Attributes: Name, Type, ParentId, Settings)
-    - [ ] Update `User` model (Link to Organization, granular Permissions)
-    - [ ] Create `Role` model (System Roles vs Custom Roles)
-    - [ ] Create `AuditLog` model (Track all user actions)
+- [x] **Database Schema Updates**
+    - [x] Create `Organization` model (Attributes: Name, Type, ParentId, Settings)
+    - [x] Update `User` model (Link to Organization, granular Permissions)
+    - [x] Create `Role` model (System Roles vs Custom Roles)
+    - [x] Create `AuditLog` model (Track all user actions)
 
-- [ ] **User Management System**
-    - [ ] Super Admin Screen: Create Master Clients
-    - [ ] Master Client Screen: Create Child Clients (Sub-accounts)
-    - [ ] Role Assignment Interface (Assign specific permissions)
+- [x] **User Management System**
+    - [x] Super Admin Screen: Create Master Clients
+    - [x] Master Client Screen: Create Child Clients (Sub-accounts)
+    - [x] Role Assignment Interface (Assign specific permissions)
 
 ### 1.2 Core Data Entry System
-- [ ] **Entity Management Screen (The Hub)**
-    - [ ] **Entity List View**: Display all assigned Clients/Child Clients.
-    - [ ] **Columns**: Client Name, Processing Status (Trial, Active, Blocked), Remaining Credits, Assigned Team.
-    - [ ] **Filters**: Filter by Status, Team, Priority.
+- [x] **Entity Management Screen (The Hub)**
+    - [x] **Entity List View**: Display all assigned Clients/Child Clients.
+    - [x] **Columns**: Client Name, Processing Status (Trial, Active, Blocked), Remaining Credits, Assigned Team.
+    - [x] **Filters**: Filter by Status, Team, Priority.
 
-- [ ] **Processing Interface (The Workbench)**
-    - [ ] **Split Screen UI**: Left side Document Viewer, Right side Data Entry Form.
-    - [ ] **Document Viewer**: Zoom, Rotate, Pan controls.
-    - [ ] **Shortcuts**: Hostkeys for rapid navigation (e.g., Ctrl+S to save, Ctrl+N for next field).
-    - [ ] **Auto-Save**: Save draft progress every 30 seconds.
+- [x] **Processing Interface (The Workbench)**
+    - [x] **Split Screen UI**: Left side Document Viewer, Right side Data Entry Form.
+    - [x] **Document Viewer**: Zoom, Rotate, Pan controls.
+    - [x] **Shortcuts**: Hostkeys for rapid navigation (e.g., Ctrl+S to save, Ctrl+N for next field).
+    - [x] **Auto-Save**: Save draft progress every 30 seconds.
 
-- [ ] **Task & Queue Management**
-    - [ ] **Processing Queue**: List of documents waiting for data entry.
-    - [ ] **My Tasks**: Personal queue for logged-in Data Entry user.
-    - [ ] **Task Assignment**: Admin/Manager assigns specific docs to specific users.
+- [x] **Task & Queue Management**
+    - [x] **Processing Queue**: List of documents waiting for data entry.
+    - [x] **My Tasks**: Personal queue for logged-in Data Entry user.
+    - [x] **Task Assignment**: Admin/Manager assigns specific docs to specific users.
 
-- [ ] **Document Workflow Actions**
-    - [ ] **Upload**: Multi-file upload with drag-and-drop.
-    - [ ] **Categorize**: Tag document type (Invoice, Bank Statement, Receipt).
-    - [ ] **Process**: manual data entry.
-    - [ ] **Submit/Complete**: Mark as done -> Move to QA (if applicable) or Completed.
+- [x] **Document Workflow Actions**
+    - [x] **Upload**: Multi-file upload with drag-and-drop.
+    - [x] **Categorize**: Tag document type (Invoice, Bank Statement, Receipt).
+    - [x] **Process**: manual data entry.
+    - [x] **Submit/Complete**: Mark as done -> Move to QA (if applicable) or Completed.
 
 ### 1.3 Basic Document Backend
 - [x] S3 Storage Integration

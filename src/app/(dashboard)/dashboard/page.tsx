@@ -1,4 +1,5 @@
 import { getDashboardStats } from "@/lib/actions";
+import SupervisorStats from "@/components/dashboard/SupervisorStats";
 import { StatusWidget } from "@/components/dashboard/StatusWidget";
 import { ExpenseChart } from "@/components/dashboard/ExpenseChart";
 import { BookkeepingInfo } from "@/components/dashboard/BookkeepingInfo";
@@ -7,8 +8,19 @@ export default async function DashboardPage() {
     const stats = await getDashboardStats();
 
     return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="p-8">
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+                {/* Placeholder for date filter */}
+            </div>
+
+            {/* SUPERVISOR / ADMIN SECTION */}
+            <div className="mb-8">
+                <SupervisorStats organizationId="entrybot-internal" />
+                {/* Note: In real app, get org ID from session */}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <StatusWidget
                     title="Invoices & Receipts"
                     description="Ready to export data from Invoices & Receipts"

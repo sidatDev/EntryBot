@@ -128,6 +128,12 @@ const mainNavItems = [
         permissionKey: "showOrganizations"
     },
     {
+        title: "Packages",
+        href: "/super-admin/packages",
+        icon: CreditCard,
+        permissionKey: "showOrganizations" // Reuse admin permission for now
+    },
+    {
         title: "Role Management",
         href: "/roles",
         icon: Shield,

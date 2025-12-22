@@ -64,6 +64,25 @@ async function main() {
     });
 
     console.log(`👤 Admin user ensured: ${user.email} (Org: ${internalOrg.name})`);
+
+    // 4. Seed Packages
+    console.log("📦 Seeding Packages...");
+    await prisma.package.upsert({
+        where: { name: "Bronze" },
+        update: {},
+        create: { name: "Bronze", price: 49.99, monthlyCredits: 500, description: "Starter entry level package" }
+    });
+    await prisma.package.upsert({
+        where: { name: "Silver" },
+        update: {},
+        create: { name: "Silver", price: 149.99, monthlyCredits: 2000, description: "Standard business package" }
+    });
+    await prisma.package.upsert({
+        where: { name: "Gold" },
+        update: {},
+        create: { name: "Gold", price: 499.99, monthlyCredits: 10000, description: "Enterprise volume package" }
+    });
+
     console.log("🌱 Seeding finished.");
 }
 

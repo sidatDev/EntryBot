@@ -27,6 +27,9 @@ model Organization {
   
   users       User[]
   documents   Document[]
+  
+  subscription Subscription?
+  teams        Team[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -59,6 +62,11 @@ model User {
   submittedDocuments   Document[] @relation("DocumentSubmitter")
   approvedDocuments    Document[] @relation("DocumentApprover")
   auditLogs            AuditLog[]
+
+  // Phase 2: Team & QA
+  teamId       String?
+  team         Team?       @relation("TeamMembers", fields: [teamId], references: [id])
+  reviews      QualityReview[]
 }
 
 model Role {
@@ -116,6 +124,9 @@ model Document {
   approvalDate     DateTime?
   rejectionReason  String?
   comments         String?
+  
+  // Phase 2: QA
+  qualityReview QualityReview?
 
   invoices       Invoice[]
   bankStatement  BankStatement?
@@ -199,4 +210,69 @@ model Tag {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// --- PHASE 2: SUBSCRIPTIONS & COMMERCIALIZATION ---
+
+model Package {
+  id             String   @id @default(cuid())
+  name           String   @unique // e.g., "Silver", "Gold"
+  price          Float
+  monthlyCredits Int
+  description    String?
+
+  subscriptions  Subscription[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Subscription {
+  id             String       @id @default(cuid())
+  
+  organizationId String       @unique // One active sub per org
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  
+  packageId      String
+  package        Package      @relation(fields: [packageId], references: [id])
+  
+  status         String       @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELED
+  startDate      DateTime     @default(now())
+  endDate        DateTime?    // Null means indefinite/auto-renew
+  
+  remainingCredits Int        @default(0) // Credits tailored to this sub period
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+// --- PHASE 2: TEAM & QA MANAGEMENT ---
+
+model Team {
+  id             String       @id @default(cuid())
+  name           String
+  
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  
+  users          User[]       @relation("TeamMembers")
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model QualityReview {
+  id             String       @id @default(cuid())
+  
+  documentId     String       @unique
+  document       Document     @relation(fields: [documentId], references: [id])
+  
+  reviewerId     String
+  reviewer       User         @relation(fields: [reviewerId], references: [id])
+  
+  status         String       // PASSED, FAILED, NEEDS_CORRECTION
+  score          Int?         // 1-100
+  notes          String?
+  
+  createdAt      DateTime     @default(now())
 }
