@@ -25,52 +25,45 @@ describe('AddUserModal', () => {
     const mockRoles = [{ id: 'custom-1', name: 'Custom Role' }]
 
     it('validates password mismatch', async () => {
+        const user = userEvent.setup()
         render(<AddUserModal organizations={mockOrgs} customRoles={mockRoles} />)
 
         // Open modal
-        fireEvent.click(screen.getByText('Add New User'))
+        await user.click(screen.getByText('Add New User'))
 
-        // Wait for modal
-        await waitFor(() => {
-            expect(screen.getByRole('dialog')).toBeInTheDocument()
-        })
+        // Wait for modal components to be visible
+        const dialog = await screen.findByRole('dialog')
+        expect(dialog).toBeInTheDocument()
 
-        // Fill form using name attributes which are stable
-        const container = document.body
-        fireEvent.change(container.querySelector('input[name="name"]')!, { target: { value: 'Test User' } })
-        fireEvent.change(container.querySelector('input[name="email"]')!, { target: { value: 'test@example.com' } })
-        fireEvent.change(container.querySelector('input[name="password"]')!, { target: { value: 'password123' } })
-        fireEvent.change(container.querySelector('input[name="confirmPassword"]')!, { target: { value: 'mismatch' } })
+        // Fill form using Label text (ensure accessibility and robustness)
+        await user.type(screen.getByLabelText(/Full Name/i), 'Test User')
+        await user.type(screen.getByLabelText(/Email Address/i), 'test@example.com')
+        await user.type(screen.getByLabelText('Initial Password *'), 'password123')
+        await user.type(screen.getByLabelText('Confirm *'), 'mismatch')
 
         // Submit
-        fireEvent.click(screen.getByRole('button', { name: 'Create User' }))
+        await user.click(screen.getByRole('button', { name: 'Create User' }))
 
-        await waitFor(() => {
-            expect(screen.getByText('Passwords do not match')).toBeInTheDocument()
-        })
+        expect(await screen.findByText('Passwords do not match')).toBeInTheDocument()
         expect(createUser).not.toHaveBeenCalled()
     })
 
     it('submits form with valid data', async () => {
+        const user = userEvent.setup()
         render(<AddUserModal organizations={mockOrgs} customRoles={mockRoles} />)
 
-        fireEvent.click(screen.getByText('Add New User'))
+        await user.click(screen.getByText('Add New User'))
 
-        await waitFor(() => {
-            expect(screen.getByRole('dialog')).toBeInTheDocument()
-        })
+        await screen.findByRole('dialog')
 
-        const container = document.body
-        fireEvent.change(container.querySelector('input[name="name"]')!, { target: { value: 'Valid User' } })
-        fireEvent.change(container.querySelector('input[name="email"]')!, { target: { value: 'valid@example.com' } })
-        fireEvent.change(container.querySelector('input[name="password"]')!, { target: { value: 'password123' } })
-        fireEvent.change(container.querySelector('input[name="confirmPassword"]')!, { target: { value: 'password123' } })
+        await user.type(screen.getByLabelText(/Full Name/i), 'Valid User')
+        await user.type(screen.getByLabelText(/Email Address/i), 'valid@example.com')
+        await user.type(screen.getByLabelText('Initial Password *'), 'password123')
+        await user.type(screen.getByLabelText('Confirm *'), 'password123')
 
-        // Select logic might be tricky with Radix/Headless UI via testing-library
-        // We might just stick to inputs we can easily control. 
-        // Default role is CLIENT.
+        // We can skip Organization/Role selection for now as they are optional/defaulted
 
-        fireEvent.click(screen.getByRole('button', { name: 'Create User' }))
+        await user.click(screen.getByRole('button', { name: 'Create User' }))
 
         await waitFor(() => {
             expect(createUser).toHaveBeenCalledWith(expect.objectContaining({

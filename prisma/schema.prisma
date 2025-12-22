@@ -82,17 +82,6 @@ model Role {
   updatedAt   DateTime @updatedAt
 }
 
-model AuditLog {
-  id        String   @id @default(cuid())
-  action    String   // USER_LOGIN, DOC_UPLOAD, DOC_DELETE
-  details   String?  // JSON details
-  ipAddress String?
-  
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  
-  createdAt DateTime @default(now())
-}
 
 // --- DOCUMENT MANAGEMENT ---
 model Document {
@@ -280,3 +269,18 @@ model QualityReview {
 
 
 
+
+
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  action         String
+  resourceId     String?
+  details        Json?
+  ipAddress      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime @default(now())
+}
