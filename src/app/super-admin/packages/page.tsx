@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getPackages } from "@/lib/actions/packages";
 import { Plus } from "lucide-react";
+import { DeletePackageButton } from "@/components/packages/DeletePackageButton";
 
 export default async function PackagesPage() {
     const packages = await getPackages();
@@ -23,7 +24,7 @@ export default async function PackagesPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {packages.map((pkg) => (
-                    <div key={pkg.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div key={pkg.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col h-full">
                         <div className="flex justify-between items-start mb-4">
                             <h3 className="text-xl font-bold text-gray-900">{pkg.name}</h3>
                             <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
@@ -36,22 +37,27 @@ export default async function PackagesPage() {
                             <span className="text-gray-500"> / month</span>
                         </div>
 
-                        <div className="space-y-3 mb-6">
+                        <div className="space-y-3 mb-6 flex-grow">
                             <div className="flex justify-between text-sm">
                                 <span className="text-gray-500">Credits Included</span>
                                 <span className="font-medium">{pkg.monthlyCredits.toLocaleString()}</span>
                             </div>
                             {pkg.description && (
-                                <p className="text-sm text-gray-600 border-t pt-3">
-                                    {pkg.description}
-                                </p>
+                                <div
+                                    className="text-sm text-gray-600 border-t pt-3 prose prose-sm max-w-none"
+                                    dangerouslySetInnerHTML={{ __html: pkg.description }}
+                                />
                             )}
                         </div>
 
-                        <div className="flex gap-3">
-                            <button className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 text-gray-700">
+                        <div className="flex gap-3 mt-auto">
+                            <Link
+                                href={`/super-admin/packages/${pkg.id}/edit`}
+                                className="flex-1 px-4 py-2 border border-blue-200 text-blue-600 rounded-lg text-sm hover:bg-blue-50 font-medium text-center"
+                            >
                                 Edit
-                            </button>
+                            </Link>
+                            <DeletePackageButton id={pkg.id} name={pkg.name} />
                         </div>
                     </div>
                 ))}

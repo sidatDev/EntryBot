@@ -5,17 +5,19 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
 
 export default function NewPackagePage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [description, setDescription] = useState("");
 
     async function handleSubmit(formData: FormData) {
         setLoading(true);
         const name = formData.get("name") as string;
         const price = parseFloat(formData.get("price") as string);
         const monthlyCredits = parseInt(formData.get("monthlyCredits") as string);
-        const description = formData.get("description") as string;
+        // description is from state variable
 
         try {
             await createPackage({ name, price, monthlyCredits, description });
@@ -72,10 +74,10 @@ export default function NewPackagePage() {
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    <textarea
-                        name="description"
-                        rows={3}
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    <RichTextEditor
+                        value={description}
+                        onChange={setDescription}
+                        placeholder="Describe the package benefits..."
                     />
                 </div>
 
