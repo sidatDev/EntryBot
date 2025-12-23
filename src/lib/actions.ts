@@ -58,9 +58,25 @@ export async function uploadDocument(formData: FormData) {
     revalidatePath("/documents");
 }
 
-// ... 
+/* -------------------------------------------------------------------------- */
+/*                            DOCUMENT OPERATIONS                             */
+/* -------------------------------------------------------------------------- */
 
+export async function deleteDocument(id: string) {
+    // Determine if we should soft delete or hard delete. For now, let's just Soft Delete by default
+    // or we can implement Recycle Bin logic. 
+    // Requirement says "Recycle Bin", so "delete" means move to bin.
+    await softDeleteDocument(id);
+}
 
+// See softDeleteDocument below
+
+export async function processDocument(formData: FormData) {
+    // This is essentially "Save Invoice" but triggered from a different context? 
+    // Usually the InvoiceForm handles the saving via saveInvoice action.
+    // This might be for background processing or automated extraction start.
+    // For now, assume this is unused or legacy placeholder.
+}
 
 export async function mergeDocuments(documentIds: string[], userId: string) {
     if (documentIds.length < 2) throw new Error("Need at least 2 documents to merge");
@@ -273,6 +289,12 @@ export async function saveInvoice(data: {
     vatRate?: number;
     notes?: string;
     currency?: string;
+    // New Fields
+    invoiceCurrency?: string;
+    baseSubTotal?: number;
+    baseTaxTotal?: number;
+    baseVatRate?: number;
+
     lineItems: Array<{
         description: string;
         quantity: number;
@@ -293,11 +315,19 @@ export async function saveInvoice(data: {
             taxTotal: data.taxTotal,
             totalAmount: data.totalAmount,
             paymentMethod: data.paymentMethod,
-            baseCurrencyAmount: data.baseCurrencyAmount,
+
+            // New & Updated Mappings
             exchangeRate: data.exchangeRate,
             vatRate: data.vatRate,
-            notes: data.notes,
             currency: data.currency || "USD",
+
+            invoiceCurrency: data.invoiceCurrency || "USD",
+            baseSubTotal: data.baseSubTotal,
+            baseTaxTotal: data.baseTaxTotal,
+            baseVatRate: data.baseVatRate,
+            baseCurrencyAmount: data.baseCurrencyAmount, // This is Gross in Base
+
+            notes: data.notes,
             status: "SAVED",
             items: {
                 create: data.lineItems,
