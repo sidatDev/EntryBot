@@ -80,7 +80,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
             const response = await fetch("/api/process-ai", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ documentUrl }),
+                body: JSON.stringify({ documentUrl, documentId }),
             });
 
             if (!response.ok) throw new Error("Failed to process document");

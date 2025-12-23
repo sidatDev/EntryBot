@@ -11,7 +11,7 @@ interface UploadZoneProps {
     category?: string;
 }
 
-export function UploadZone({ category = "GENERAL" }: UploadZoneProps) {
+export function UploadZone({ category = "SALES_INVOICE" }: UploadZoneProps) {
     const { data: session } = useSession();
     const [uploading, setUploading] = useState(false);
     const [files, setFiles] = useState<File[]>([]);

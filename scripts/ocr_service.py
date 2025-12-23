@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def ocr_process(image_path):
     try:
         # Initialize PaddleOCR
-        ocr = PaddleOCR(use_angle_cls=True, lang='en', show_log=False)
+        ocr = PaddleOCR(use_angle_cls=True, lang='en')
         
         logger.info(f"Processing image: {image_path}")
         result = ocr.ocr(image_path, cls=True)

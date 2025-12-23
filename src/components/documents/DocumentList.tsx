@@ -12,21 +12,30 @@ import { UploadModal } from "@/components/upload/UploadModal";
 interface DocumentListProps {
     documents: any[];
     isRecycleBin?: boolean;
-    category?: string;  // ADD THIS LINE
+    category?: string;
 }
 
-const CATEGORY_OPTIONS = ["GENERAL", "SALES", "PURCHASE", "STATEMENT", "OTHER"];
-const PAYMENT_METHODS = ["None", "Cash", "Bank Transfer", "Credit Card", "Debit Card", "Commonwealth Bank"]; // Example list
+const CATEGORY_OPTIONS = [
+    { label: "Sales Invoice", value: "SALES_INVOICE" },
+    { label: "Purchase Invoice", value: "PURCHASE_INVOICE" },
+    { label: "Bank Statement", value: "STATEMENT" },
+    { label: "Other", value: "OTHER" }
+];
+// const PAYMENT_METHODS = ["None", "Cash", "Bank Transfer", "Credit Card", "Debit Card", "Commonwealth Bank"]; 
+const PAYMENT_METHODS = ["None", "Cash", "Bank Transfer", "Credit Card", "Debit Card", "Commonwealth Bank"];
 
 export function DocumentList({ documents, isRecycleBin = false, category }: DocumentListProps) {
     const router = useRouter();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [itemsPerPage, setItemsPerPage] = useState(25);
+    const [notification, setNotification] = useState<{ message: string; type: "success" | "info" } | null>(null);
+
     const uploadCategory = category === "SALES_INVOICE"
         ? "SALES_INVOICE"
         : category === "PURCHASE_INVOICE"
             ? "PURCHASE_INVOICE"
             : "SALES_INVOICE";
+
     const toggleSelection = (id: string) => {
         setSelectedIds((prev) =>
             prev.includes(id)
@@ -48,15 +57,23 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
         router.refresh();
     };
 
+    const showNotification = (message: string, type: "success" | "info" = "info") => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 3000);
+    };
+
     const handleInlineCategoryChange = async (id: string, newCategory: string) => {
+        // Check if item will disappear
+        if (category && category !== newCategory) {
+            showNotification(`Document moved to ${newCategory}. It has been removed from this list.`, "info");
+        }
         await updateDocumentCategory(id, newCategory);
-        // Optimistic update or refresh is handled by server action revalidate, but we might want local state update for speed
-        // For now relying on router.refresh() from action
     };
 
     const handleInlinePaymentMethodChange = async (invoiceId: string, newMethod: string) => {
         if (!invoiceId) return;
         await updateInvoicePaymentMethod(invoiceId, newMethod);
+        showNotification("Payment method updated", "success");
     };
 
     const handleDelete = async () => {
@@ -92,7 +109,17 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 relative">
+            {/* Notification Toast */}
+            {notification && (
+                <div className={cn(
+                    "fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg text-white font-medium z-50 animate-in slide-in-from-bottom-2 fade-in",
+                    notification.type === "success" ? "bg-green-600" : "bg-slate-800"
+                )}>
+                    {notification.message}
+                </div>
+            )}
+
             {/* Action Bar - Row 1 (Top Right Actions mostly in blueprint, but we structure for layout) */}
             {!isRecycleBin && (
                 <div className="flex flex-col gap-2">
@@ -256,7 +283,7 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
                                                     disabled={isRecycleBin}
                                                 >
                                                     {CATEGORY_OPTIONS.map(opt => (
-                                                        <option key={opt} value={opt}>{opt}</option>
+                                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
                                                     ))}
                                                 </select>
                                             </td>
@@ -339,3 +366,4 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
         </div>
     );
 }
+

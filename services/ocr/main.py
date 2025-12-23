@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize PaddleOCR once at startup
 logger.info("Initializing PaddleOCR...")
-ocr = PaddleOCR(use_angle_cls=True, lang='en', show_log=False)
+ocr = PaddleOCR(use_angle_cls=True, lang='en')
 
 class OCRResponse(BaseModel):
     raw_text: str

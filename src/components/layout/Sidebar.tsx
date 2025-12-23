@@ -74,6 +74,11 @@ const mainNavItems = [
         hasDropdown: true,
         subItems: [
             {
+                title: "All Invoices",
+                href: "/documents",
+                permissionKey: "showInvoices"
+            },
+            {
                 title: "Sales Invoices",
                 href: "/documents?category=SALES_INVOICE",
                 permissionKey: "showInvoices"
