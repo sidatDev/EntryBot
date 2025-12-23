@@ -6,8 +6,10 @@ import * as z from "zod";
 import { Loader2, Save, FileText, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { LineItemsTable } from "./LineItemsTable";
-import { saveInvoice } from "@/lib/actions";
+import { saveInvoice, getDocumentMetadata } from "@/lib/actions";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
 
 const invoiceSchema = z.object({
     type: z.enum(["SALES", "PURCHASE"]),
@@ -15,6 +17,10 @@ const invoiceSchema = z.object({
     date: z.string().min(1, "Date is required"),
     dueDate: z.string().optional(),
     supplierName: z.string().optional(),
+    currency: z.string().default("USD"),
+    exchangeRate: z.number().default(1),
+    vatRate: z.number().default(0),
+    paymentMethod: z.string().optional(),
     customerName: z.string().optional(),
     notes: z.string().optional(),
 });
@@ -35,15 +41,26 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
     const [processingAi, setProcessingAi] = useState(false);
     const [lineItems, setLineItems] = useState<LineItem[]>([]);
 
+    const [metadata, setMetadata] = useState<any>(null);
+
+    useEffect(() => {
+        getDocumentMetadata(documentId).then(setMetadata);
+    }, [documentId]);
+
     const form = useForm<InvoiceFormValues>({
         resolver: zodResolver(invoiceSchema),
         defaultValues: {
             type: "PURCHASE",
+            currency: "USD",
+            exchangeRate: 1,
+            vatRate: 0,
         },
     });
 
+
+
     const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
-    const taxRate = 0.1; // 10% tax
+    const taxRate = form.watch("vatRate") ? form.watch("vatRate") / 100 : 0;
     const taxTotal = subtotal * taxRate;
     const grandTotal = subtotal + taxTotal;
 
@@ -141,6 +158,28 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                 </button>
             </div>
 
+            {/* Read-Only Metadata Header */}
+            {metadata && (
+                <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 text-sm grid grid-cols-4 gap-4">
+                    <div>
+                        <span className="block text-slate-500 text-xs">Document ID</span>
+                        <span className="font-medium text-slate-700 truncate block" title={metadata.id}>{metadata.id}</span>
+                    </div>
+                    <div>
+                        <span className="block text-slate-500 text-xs">File Name</span>
+                        <span className="font-medium text-slate-700 truncate block" title={metadata.name}>{metadata.name}</span>
+                    </div>
+                    <div>
+                        <span className="block text-slate-500 text-xs">Uploaded By</span>
+                        <span className="font-medium text-slate-700">{metadata.user?.name || "Unknown"}</span>
+                    </div>
+                    <div>
+                        <span className="block text-slate-500 text-xs">Upload Date</span>
+                        <span className="font-medium text-slate-700">{new Date(metadata.createdAt).toLocaleDateString()}</span>
+                    </div>
+                </div>
+            )}
+
             <div className="flex-1 overflow-y-auto p-6">
                 <form className="space-y-8 max-w-4xl mx-auto">
                     {/* Basic Info Section */}
@@ -148,7 +187,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                         <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">Basic Information</h3>
                         <div className="grid grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-700">Type *</label>
+                                <label className="text-sm font-medium text-slate-700">Record Transaction As *</label>
                                 <select
                                     {...form.register("type")}
                                     className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
@@ -159,7 +198,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-700">Invoice Number *</label>
+                                <label className="text-sm font-medium text-slate-700">Document Number *</label>
                                 <input
                                     {...form.register("invoiceNumber")}
                                     className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
@@ -171,7 +210,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-700">Invoice Date *</label>
+                                <label className="text-sm font-medium text-slate-700">Document Date *</label>
                                 <input
                                     type="date"
                                     {...form.register("date")}
@@ -180,12 +219,59 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-700">Due Date</label>
+                                <label className="text-sm font-medium text-slate-700">Due/Payment Date</label>
                                 <input
                                     type="date"
                                     {...form.register("dueDate")}
                                     className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
                                 />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Transaction Details */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">Transaction Details</h3>
+                        <div className="grid grid-cols-3 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700">Category</label>
+                                <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600">
+                                    {metadata?.category || "General"}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700">Transaction Currency</label>
+                                <select
+                                    {...form.register("currency")}
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                                >
+                                    <option value="USD">USD ($)</option>
+                                    <option value="GBP">GBP (£)</option>
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="AUD">AUD ($)</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700">Exchange Rate</label>
+                                <input
+                                    type="number"
+                                    step="0.0001"
+                                    {...form.register("exchangeRate", { valueAsNumber: true })}
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700">Payment Method</label>
+                                <select
+                                    {...form.register("paymentMethod")}
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                                >
+                                    <option value="">Select Method...</option>
+                                    <option value="Cash">Cash</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                    <option value="Credit Card">Credit Card</option>
+                                    <option value="Debit Card">Debit Card</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -196,12 +282,12 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                         <div className="grid grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-700">
-                                    {form.watch("type") === "PURCHASE" ? "Supplier Name" : "Customer Name"}
+                                    Contact Name
                                 </label>
                                 <input
                                     {...form.register(form.watch("type") === "PURCHASE" ? "supplierName" : "customerName")}
                                     className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                                    placeholder={form.watch("type") === "PURCHASE" ? "ABC Suppliers Ltd" : "XYZ Company"}
+                                    placeholder={form.watch("type") === "PURCHASE" ? "Supplier Name" : "Customer Name"}
                                 />
                             </div>
                         </div>
@@ -219,15 +305,23 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                         <div className="flex justify-end">
                             <div className="w-80 space-y-3 bg-slate-50 p-4 rounded-lg">
                                 <div className="flex justify-between text-sm">
-                                    <span className="text-slate-600">Subtotal:</span>
+                                    <span className="text-slate-600">Net Amount:</span>
                                     <span className="font-semibold text-slate-900">${subtotal.toFixed(2)}</span>
                                 </div>
+                                <div className="flex justify-between text-sm items-center">
+                                    <span className="text-slate-600">VAT/GST Rate (%):</span>
+                                    <input
+                                        type="number"
+                                        {...form.register("vatRate", { valueAsNumber: true })}
+                                        className="w-16 px-1 py-0.5 border rounded text-right text-sm"
+                                    />
+                                </div>
                                 <div className="flex justify-between text-sm">
-                                    <span className="text-slate-600">Tax (10%):</span>
+                                    <span className="text-slate-600">VAT/GST Amount:</span>
                                     <span className="font-semibold text-slate-900">${taxTotal.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-base pt-2 border-t border-slate-200">
-                                    <span className="font-semibold text-slate-700">Grand Total:</span>
+                                    <span className="font-semibold text-slate-700">Gross Amount:</span>
                                     <span className="font-bold text-indigo-600 text-lg">${grandTotal.toFixed(2)}</span>
                                 </div>
                             </div>
@@ -236,12 +330,12 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
 
                     {/* Notes Section */}
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">Additional Notes</h3>
+                        <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">Description</h3>
                         <textarea
                             {...form.register("notes")}
                             rows={3}
                             className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none resize-none"
-                            placeholder="Add any additional notes or comments..."
+                            placeholder="Add description..."
                         />
                     </div>
 

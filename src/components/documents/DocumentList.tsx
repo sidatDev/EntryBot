@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Calendar, ArrowRight, CheckSquare, Square, Download, RefreshCw, Filter, Trash2, Edit, Columns, ArrowRightLeft, FilePlus } from "lucide-react";
+import { FileText, Calendar, ArrowRight, CheckSquare, Square, Download, RefreshCw, Filter, Trash2, Edit, Columns, ArrowRightLeft, FilePlus, Check, X } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { PdfTools } from "@/components/tools/PdfTools";
 import { useRouter } from "next/navigation";
-import { updateDocumentCategory, updateInvoicePaymentMethod, softDeleteDocument, restoreDocument, permanentDeleteDocument, exportInvoicesToCSV } from "@/lib/actions";
+import { updateDocumentCategory, updateInvoicePaymentMethod, softDeleteDocument, restoreDocument, permanentDeleteDocument, exportInvoicesToCSV, updateApprovalStatus, bulkApproveDocuments, assignDocumentToMe } from "@/lib/actions";
 import { UploadModal } from "@/components/upload/UploadModal";
+import { BulkEditModal } from "./BulkEditModal";
 
 interface DocumentListProps {
     documents: any[];
@@ -97,7 +98,7 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
     };
 
     const handleExport = async () => {
-        const csv = await exportInvoicesToCSV();
+        const csv = await exportInvoicesToCSV(selectedIds.length > 0 ? selectedIds : undefined);
         console.log("Exporting CSV...", csv);
         // In real app, trigger download blob
         const blob = new Blob([csv], { type: 'text/csv' });
@@ -124,12 +125,22 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
             {!isRecycleBin && (
                 <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-end gap-2 bg-white p-2 rounded-lg border border-slate-200">
-                        <button className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700">
+                        <button
+                            onClick={async () => {
+                                if (confirm(`Approve ${selectedIds.length} documents?`)) {
+                                    await bulkApproveDocuments(selectedIds);
+                                    setSelectedIds([]);
+                                }
+                            }}
+                            disabled={selectedIds.length === 0}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             <CheckSquare className="h-4 w-4" /> Approve
                         </button>
-                        <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded text-sm font-medium hover:bg-blue-600">
-                            <Edit className="h-4 w-4" /> Bulk Edit
-                        </button>
+                        <BulkEditModal
+                            selectedIds={selectedIds}
+                            onComplete={handleToolsComplete}
+                        />
                         {/* <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded text-sm font-medium hover:bg-blue-600">
                             <Columns className="h-4 w-4" /> Columns
                         </button>
@@ -208,15 +219,16 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
                                         )}
                                     </button>
                                 </th>
-                                <th className="px-4 py-3 font-semibold">Doc ID</th>
-                                <th className="px-4 py-3 font-semibold">Doc Type</th>
-                                <th className="px-4 py-3 font-semibold">Supplier Name</th>
-                                <th className="px-4 py-3 font-semibold">Invoice Date</th>
-                                <th className="px-4 py-3 font-semibold text-right">Amount <span className="text-xs opacity-75 block">(Invoice Curr.)</span></th>
-                                <th className="px-4 py-3 font-semibold text-right">Amount <span className="text-xs opacity-75 block">(Base Curr.)</span></th>
-                                <th className="px-4 py-3 font-semibold">Category</th>
-                                <th className="px-4 py-3 font-semibold">Payment Method</th>
-                                <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                                <th className="px-4 py-3 font-semibold whitespace-nowrap">Doc ID</th>
+                                <th className="px-4 py-3 font-semibold whitespace-nowrap">Doc Type</th>
+                                <th className="px-4 py-3 font-semibold whitespace-nowrap">Supplier Name</th>
+                                <th className="px-4 py-3 font-semibold whitespace-nowrap">Invoice Date</th>
+                                <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Amount <span className="text-xs opacity-75 block">(Invoice Curr.)</span></th>
+                                <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Amount <span className="text-xs opacity-75 block">(Base Curr.)</span></th>
+                                <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Category</th>
+                                <th className="px-4 py-3 font-semibold whitespace-nowrap">Payment Method</th>
+                                <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Approval</th>
+                                <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -299,11 +311,45 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
                                                     ))}
                                                 </select>
                                             </td>
+                                            <td className="px-4 py-3 text-center">
+                                                {doc.approvalStatus === "APPROVED" && (
+                                                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
+                                                        Approved
+                                                    </span>
+                                                )}
+                                                {doc.approvalStatus === "DENIED" && (
+                                                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-700">
+                                                        Denied
+                                                    </span>
+                                                )}
+                                                {(!doc.approvalStatus || doc.approvalStatus === "PENDING") && (
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-700 mr-2">
+                                                            Pending
+                                                        </span>
+                                                        <button
+                                                            onClick={() => updateApprovalStatus(doc.id, "APPROVED")}
+                                                            className="p-1 hover:bg-green-100 text-green-600 rounded transition-colors"
+                                                            title="Approve"
+                                                        >
+                                                            <Check className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => updateApprovalStatus(doc.id, "DENIED")}
+                                                            className="p-1 hover:bg-red-100 text-red-600 rounded transition-colors"
+                                                            title="Deny"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </td>
                                             <td className="px-4 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     {!isRecycleBin && (
                                                         <>
                                                             <button
+                                                                onClick={() => assignDocumentToMe(doc.id)}
                                                                 className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 text-xs font-semibold"
                                                                 title="Assign to Me"
                                                             >

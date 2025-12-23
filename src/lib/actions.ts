@@ -7,6 +7,8 @@ import { hash } from "bcryptjs";
 import { uploadToS3, deleteFromS3, getFileBufferFromS3 } from "./s3";
 import { hasCredits, deductCredits } from "@/lib/billing";
 import { shouldFlagForQA } from "@/lib/utils";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function uploadDocument(formData: FormData) {
     const file = formData.get("file") as File;
@@ -144,6 +146,23 @@ export async function splitDocument(documentId: string) {
     revalidatePath("/documents");
 }
 
+export async function getDocumentMetadata(documentId: string) {
+    const doc = await prisma.document.findUnique({
+        where: { id: documentId },
+        select: {
+            id: true,
+            name: true,
+            status: true,
+            category: true,
+            createdAt: true,
+            user: {
+                select: { name: true }
+            }
+        }
+    });
+    return doc;
+}
+
 // --- DOCUMENTS ---
 
 export async function getDocuments(category?: string, status?: string, assignedToId?: string) {
@@ -251,7 +270,9 @@ export async function saveInvoice(data: {
     paymentMethod?: string;
     baseCurrencyAmount?: number;
     exchangeRate?: number;
+    vatRate?: number;
     notes?: string;
+    currency?: string;
     lineItems: Array<{
         description: string;
         quantity: number;
@@ -274,6 +295,9 @@ export async function saveInvoice(data: {
             paymentMethod: data.paymentMethod,
             baseCurrencyAmount: data.baseCurrencyAmount,
             exchangeRate: data.exchangeRate,
+            vatRate: data.vatRate,
+            notes: data.notes,
+            currency: data.currency || "USD",
             status: "SAVED",
             items: {
                 create: data.lineItems,
@@ -322,6 +346,16 @@ export async function updateDocumentStatus(id: string, status: string) {
     revalidatePath(`/documents/${id}/process`);
 }
 
+export async function updateApprovalStatus(id: string, status: string) {
+    await prisma.document.update({
+        where: { id },
+        data: { approvalStatus: status },
+    });
+
+    revalidatePath("/documents");
+    revalidatePath("/dashboard");
+}
+
 export async function updateDocumentCategory(id: string, category: string) {
     await prisma.document.update({
         where: { id },
@@ -338,6 +372,55 @@ export async function updateInvoicePaymentMethod(invoiceId: string, paymentMetho
     revalidatePath("/documents");
 }
 
+export async function assignDocumentToMe(documentId: string) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) throw new Error("Unauthorized");
+
+    await prisma.document.update({
+        where: { id: documentId },
+        data: {
+            assignedToId: session.user.id,
+            status: "PROCESSING" // Automatically lock/start processing behavior?
+        }
+    });
+    revalidatePath("/documents");
+}
+
+export async function bulkApproveDocuments(documentIds: string[]) {
+    await prisma.document.updateMany({
+        where: { id: { in: documentIds } },
+        data: { approvalStatus: "APPROVED" }
+    });
+    revalidatePath("/documents");
+}
+
+export async function bulkUpdateDocuments(documentIds: string[], data: { category?: string, paymentMethod?: string }) {
+    if (data.category) {
+        await prisma.document.updateMany({
+            where: { id: { in: documentIds } },
+            data: { category: data.category }
+        });
+    }
+
+    if (data.paymentMethod) {
+        // Payment Method is on Invoice model, so we need to find invoices linked to these docs
+        const documents = await prisma.document.findMany({
+            where: { id: { in: documentIds } },
+            include: { invoices: { select: { id: true } } }
+        });
+
+        const invoiceIds = documents.flatMap(d => d.invoices.map(i => i.id));
+
+        if (invoiceIds.length > 0) {
+            await prisma.invoice.updateMany({
+                where: { id: { in: invoiceIds } },
+                data: { paymentMethod: data.paymentMethod }
+            });
+        }
+    }
+    revalidatePath("/documents");
+}
+
 export async function getInvoicesByDocument(documentId: string) {
     return await prisma.invoice.findMany({
         where: { documentId },
@@ -348,17 +431,33 @@ export async function getInvoicesByDocument(documentId: string) {
     });
 }
 
-export async function exportInvoicesToCSV() {
-    const invoices = await prisma.invoice.findMany({
+export async function exportInvoicesToCSV(documentIds?: string[]) {
+    const where: any = {
+        status: { not: "DELETED" }
+    };
+
+    if (documentIds && documentIds.length > 0) {
+        where.id = { in: documentIds };
+    }
+
+    const documents = await prisma.document.findMany({
+        where,
         include: {
-            items: true,
-            document: true,
+            invoices: {
+                include: { items: true },
+                take: 1,
+                orderBy: { createdAt: "desc" }
+            }
         },
         orderBy: { createdAt: "desc" },
     });
 
     // Create CSV header
     const headers = [
+        "Document Name",
+        "Document Type",
+        "Category",
+        "Upload Date",
         "Invoice Number",
         "Type",
         "Date",
@@ -368,28 +467,42 @@ export async function exportInvoicesToCSV() {
         "Total",
         "Currency",
         "Status",
-        "Document",
         "Line Items",
     ];
 
     // Create CSV rows
-    const rows = invoices.map((inv) => {
-        const party = inv.type === "PURCHASE" ? inv.supplierName : inv.customerName;
-        const lineItems = inv.items
-            .map((item) => `${item.description} (${item.quantity} x $${item.unitPrice})`)
-            .join("; ");
+    const rows = documents.map((doc) => {
+        const inv = doc.invoices?.[0]; // Get the latest invoice if exists
+
+        // Fields from Invoice (or "-")
+        const invNumber = inv?.invoiceNumber || "-";
+        const type = inv?.type || "-";
+        const date = inv?.date ? inv.date.toLocaleDateString() : "-";
+        const party = inv ? (inv.type === "PURCHASE" ? inv.supplierName : inv.customerName) : "-";
+        const subTotal = inv?.subTotal?.toFixed(2) || "-";
+        const taxTotal = inv?.taxTotal?.toFixed(2) || "-";
+        const total = inv?.totalAmount?.toFixed(2) || "-";
+        const currency = inv?.currency || "-";
+        const status = doc.status; // Use Document status as it's the master status
+
+        const lineItems = inv?.items
+            ? inv.items.map((item) => `${item.description} (${item.quantity} x ${item.unitPrice})`).join("; ")
+            : "-";
 
         return [
-            inv.invoiceNumber || "",
-            inv.type,
-            inv.date?.toLocaleDateString() || "",
-            party || "",
-            inv.subTotal?.toFixed(2) || "0.00",
-            inv.taxTotal?.toFixed(2) || "0.00",
-            inv.totalAmount?.toFixed(2) || "0.00",
-            inv.currency,
-            inv.status,
-            inv.document.name,
+            doc.name,
+            doc.type,
+            doc.category,
+            doc.createdAt.toLocaleDateString(),
+            invNumber,
+            type,
+            date,
+            party || "-",
+            subTotal,
+            taxTotal,
+            total,
+            currency,
+            status,
             lineItems,
         ];
     });

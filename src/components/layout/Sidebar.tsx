@@ -75,7 +75,7 @@ const mainNavItems = [
         subItems: [
             {
                 title: "All Invoices",
-                href: "/documents",
+                href: "/documents?status=UPLOADED",
                 permissionKey: "showInvoices"
             },
             {

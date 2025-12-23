@@ -148,6 +148,8 @@ model Invoice {
   paymentMethod      String?
   baseCurrencyAmount Float?
   exchangeRate       Float?   @default(1.0)
+  vatRate            Float?   @default(0)
+  notes              String?
   
   documentId    String
   document      Document @relation(fields: [documentId], references: [id])
