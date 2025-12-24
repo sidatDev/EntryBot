@@ -166,10 +166,11 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
     const handleAutoFill = async () => {
         setProcessingAi(true);
         try {
+            // Updated to send 'url' instead of 'documentUrl'
             const response = await fetch("/api/process-ai", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ documentUrl, documentId }),
+                body: JSON.stringify({ url: documentUrl, documentId }),
             });
 
             if (!response.ok) throw new Error("Failed to process document");
@@ -185,6 +186,15 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
             } else if (data.customerName) {
                 setValue("type", "SALES");
                 setValue("contactName", data.customerName);
+            }
+
+            if (data.currency) {
+                setValue("currency", data.currency);
+                setValue("invoiceCurrency", data.currency);
+            }
+
+            if (data.vatRate) {
+                setValue("vatRate", data.vatRate);
             }
 
             if (data.lineItems && Array.isArray(data.lineItems)) {
@@ -433,6 +443,13 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                     </div>
 
 
+                    {/* Line Items Table (Restored) */}
+                    <div className="mt-8 border-t border-slate-100 pt-8">
+                        <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wider">Line Items</h3>
+                        <LineItemsTable items={lineItems} onChange={setLineItems} />
+                    </div>
+
+
                     {/* Action Buttons */}
                     <div className="flex gap-4 pt-10 border-t border-slate-100 mt-8">
                         <button
@@ -454,9 +471,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                         </button>
                     </div>
 
-                    <div className="hidden">
-                        <LineItemsTable items={lineItems} onChange={setLineItems} />
-                    </div>
+
                 </form>
             </div>
 

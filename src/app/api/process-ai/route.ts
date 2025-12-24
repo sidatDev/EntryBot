@@ -1,84 +1,133 @@
 import { NextResponse } from "next/server";
-import { readFile } from "fs/promises";
-import { join } from "path";
 import { prisma } from "@/lib/prisma";
 
-// Define response type from OCR Service
-interface OCRResponse {
-    extracted_text: string;
+// Define response type from External OCR Service
+interface ExternalOCRResponse {
+    raw_text: string;
     structured_data: {
-        invoiceNumber?: string | null;
-        date?: string | null;
-        dueDate?: string | null;
-        totalAmount?: number | null;
-        taxTotal?: number | null;
-        subTotal?: number | null;
-        supplierName?: string | null;
-        customerName?: string | null;
-        lineItems?: any[];
+        Document_Number?: string | null;
+        Document_Date?: string | null;
+        Due_Payment_Date?: string | null;
+        Contact_Name?: string | null;
+
+        // Amounts
+        Gross_Amount?: string | null;
+        Net_Amount_invoice_currency?: string | null;
+        VAT_GST_Amount_invoice_currency?: string | null;
+        VAT_GST_Rate_invoice_currency?: string | null;
+
+        // Currency
+        Transaction_Currency?: string | null;
+
+        // Line Items
+        line_items?: Array<{
+            item_description?: string;
+            unit_price?: string;
+            quantity?: string;
+            total?: string;
+        }>;
     };
-    processing_time: number;
+    status: string;
+}
+
+function parseDate(dateStr?: string | null): string | null {
+    if (!dateStr) return null;
+    // Expected format: DD/MM/YYYY
+    // Return format: YYYY-MM-DD
+
+    const parts = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (parts) {
+        const day = parts[1].padStart(2, '0');
+        const month = parts[2].padStart(2, '0');
+        const year = parts[3];
+        return `${year}-${month}-${day}`;
+    }
+
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+        return d.toISOString().split('T')[0];
+    }
+
+    return null;
+}
+
+function parseAmount(amountStr?: string | null): number {
+    if (!amountStr) return 0;
+    const clean = amountStr.replace(/[^0-9.-]+/g, "");
+    return parseFloat(clean) || 0;
 }
 
 export async function POST(req: Request) {
     try {
-        const { documentUrl, documentId } = await req.json();
+        // Updated to expect 'url' instead of 'documentUrl'
+        const { url, documentId } = await req.json();
 
-        if (!documentUrl) {
-            return NextResponse.json({ error: "Document URL is required" }, { status: 400 });
+        if (!url) {
+            return NextResponse.json({ error: "URL is required" }, { status: 400 });
         }
 
-        // Construct full path to the file
-        // documentUrl is like "/uploads/123-file.jpg"
-        const relativePath = documentUrl.startsWith("/") ? documentUrl.slice(1) : documentUrl;
-        const filePath = join(process.cwd(), "public", relativePath);
+        console.log(`[Process-AI] Processing URL: ${url}`);
 
-        // Read file buffer
-        const fileBuffer = await readFile(filePath);
-        const fileName = relativePath.split('/').pop() || "document.jpg";
+        const ocrServiceUrl = "https://paddle-ocr.sidattech.com/process-url";
 
-        // Call Docker OCR Service
-        console.log(`[Process-AI] Sending ${fileName} to OCR Service...`);
-
-        const formData = new FormData();
-        const blob = new Blob([fileBuffer], { type: "application/octet-stream" });
-        formData.append("file", blob, fileName);
-
-        const ocrServiceUrl = process.env.OCR_SERVICE_URL || "http://localhost:8000/process";
-
+        // Call External OCR Service
         const response = await fetch(ocrServiceUrl, {
             method: "POST",
-            body: formData,
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ url }),
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error(`[Process-AI] OCR Service Error: ${response.status} ${errorText}`);
+            console.error(`[Process-AI] External OCR Service Error: ${response.status} ${errorText}`);
             throw new Error(`OCR Service failed with status ${response.status}`);
         }
 
-        const result = await response.json() as OCRResponse;
-        console.log(`[Process-AI] OCR Success. Extracted ${result.extracted_text.length} chars.`);
+        const result = await response.json() as ExternalOCRResponse;
+        console.log(`[Process-AI] OCR Success. Status: ${result.status}`);
+
+        const data = result.structured_data;
+
+        // Map to Internal Format
+        const mappedData = {
+            invoiceNumber: data.Document_Number || "",
+            date: parseDate(data.Document_Date),
+            dueDate: parseDate(data.Due_Payment_Date),
+            supplierName: data.Contact_Name || "",
+            customerName: "",
+
+            totalAmount: parseAmount(data.Gross_Amount),
+            taxTotal: parseAmount(data.VAT_GST_Amount_invoice_currency),
+            subTotal: parseAmount(data.Net_Amount_invoice_currency),
+            vatRate: parseAmount(data.VAT_GST_Rate_invoice_currency),
+            currency: data.Transaction_Currency || "USD",
+
+            lineItems: (data.line_items || []).map(item => ({
+                description: item.item_description || "",
+                quantity: parseAmount(item.quantity || "1"),
+                unitPrice: parseAmount(item.unit_price || "0"),
+                total: parseAmount(item.total || "0")
+            }))
+        };
 
         // Update Database with Extracted Text
-        if (documentId) {
+        if (documentId && result.raw_text) {
             try {
                 await prisma.document.update({
                     where: { id: documentId },
                     data: {
-                        extractedText: result.extracted_text,
-                        // Could also update status to 'PROCESSED' if desired, but kept simple for now
+                        extractedText: result.raw_text,
                     }
                 });
                 console.log(`[Process-AI] Updated Document ${documentId} with extracted text.`);
             } catch (dbError) {
                 console.error(`[Process-AI] Database Update Error:`, dbError);
-                // Continue execution to return data to frontend even if DB save fails
             }
         }
 
-        // Return structured data for auto-fill
-        return NextResponse.json(result.structured_data);
+        return NextResponse.json(mappedData);
 
     } catch (error: any) {
         console.error("[Process-AI] Error:", error);
