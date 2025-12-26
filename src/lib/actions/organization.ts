@@ -27,6 +27,7 @@ export async function createOrganization(data: CreateOrgData) {
                 type: data.type,
                 parentId: data.parentId,
                 status: "ACTIVE",
+                credits: 50, // Default trial credits
             },
         });
 
@@ -42,11 +43,10 @@ export async function createOrganization(data: CreateOrgData) {
             data: {
                 name: data.adminName,
                 email: data.adminEmail,
-                password: hashedPassword,
+                passwordHash: hashedPassword,
                 organizationId: org.id,
                 customRoleId: role?.id,
                 role: "ADMIN", // Fallback
-                status: "ACTIVE",
             },
         });
 

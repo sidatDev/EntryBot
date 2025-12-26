@@ -1,5 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
@@ -10,123 +8,98 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- ORGANIZATION HIERARCHY ---
-model Organization {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  type        String   @default("CHILD_CLIENT") // MASTER_CLIENT, CHILD_CLIENT, INTERNAL
-  
-  // Hierarchy
-  parentId    String?
-  parent      Organization? @relation("OrgHierarchy", fields: [parentId], references: [id])
-  children    Organization[] @relation("OrgHierarchy")
+// --- CORE: DOCUMENT MANAGEMENT ---
 
-  // Settings & Credits
-  status      String   @default("ACTIVE") // ACTIVE, TRIAL, BLOCKED
-  credits     Int      @default(0) // Available processing credits
+model Document {
+  id            String   @id @default(cuid())
+  name          String
+  url           String
+  type          String   // e.g., 'image/png', 'application/pdf'
+  size          Int
   
-  users       User[]
-  documents   Document[]
+  status        String   @default("PENDING") // PENDING, PROCESSING, REVIEW_REQUIRED, COMPLETED
+  extractedText String?  @db.Text
   
-  subscription Subscription?
-  teams        Team[]
-  auditLogs    AuditLog[]
+  // New: Categorization
+  category      String?  @default("General") // e.g., Invoice, Receipt, Contract
+  source        String?  @default("UPLOAD") // UPLOAD, SPLIT, MERGE
+  tags          Tag[]
+  
+  // Relations
+  uploaderId    String?
+  user          User?    @relation(fields: [uploaderId], references: [id])
+  
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  assignedToId  String?
+  assignedTo    User?    @relation("AssignedDocuments", fields: [assignedToId], references: [id])
+  
+  // Extracted Entities
+  invoices       Invoice[]
+  bankStatement  BankStatement? // One-to-One
+  
+  qualityReview  QualityReview?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
 }
+
+
+// --- CORE: AUTHENTICATION & RBAC ---
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String?
+  passwordHash   String
   
-  // Improved Role System
-  role      String   @default("SUBMITTER") // Legacy fallback
+  role           String   @default("ENTRY_OPERATOR") // ADMIN, MANAGER, ENTRY_OPERATOR, VIEWER
+  status         String   @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
   
-  // Organization Link
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  
-  // Custom Role (Granular Permissions)
-  customRoleId String?
-  customRole   Role?   @relation(fields: [customRoleId], references: [id])
-
-  status       String  @default("ACTIVE") // ACTIVE, INACTIVE
-  integrationStatus String @default("NONE") // NONE, XERO, QUICKBOOKS
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  lastLogin DateTime?
-
-  submittedDocuments   Document[] @relation("DocumentSubmitter")
-  approvedDocuments    Document[] @relation("DocumentApprover")
-  auditLogs            AuditLog[]
-
-  // Phase 2: Team & QA
-  teamId       String?
-  team         Team?       @relation("TeamMembers", fields: [teamId], references: [id])
-  reviews      QualityReview[]
-}
-
-model Role {
-  id          String   @id @default(cuid())
-  name        String   @unique // SUPER_ADMIN, MASTER_ADMIN, DATA_ENTRY, etc.
-  description String?
-  permissions String   // JSON: ["doc.create", "org.view", "user.manage"]
-  isSystem    Boolean  @default(false) // System roles cannot be deleted
-  
-  users       User[]
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-
-// --- DOCUMENT MANAGEMENT ---
-model Document {
-  id        String   @id @default(cuid())
-  name      String
-  url       String   
-  size      Int
-  type      String   // PDF, IMG
-  category  String   @default("GENERAL") 
-  extractedText String? 
-  status    String   @default("UPLOADED") // UPLOADED, PENDING_ENTRY, PROCESSING, QA_REVIEW, COMPLETED, REJECTED
-  source    String   @default("WEB")      
-  
-  // Ownership
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], name: "DocumentSubmitter")
+  // Custom Role (Optional)
+  customRoleId   String?
+  customRole     Role?    @relation(fields: [customRoleId], references: [id])
   
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
-
-  // Workflow
-  assignedToId   String?  // User ID of Data Entry person processing this
-  qaStatus       String   @default("NONE") // NONE, PASSED, FAILED
-
-  // Approval Legacy
-  approvalStatus   String   @default("PENDING") 
-  approverId       String?
-  approver         User?    @relation(fields: [approverId], references: [id], name: "DocumentApprover", onDelete: SetNull)
-  approvalDate     DateTime?
-  rejectionReason  String?
-  comments         String?
   
-  // Phase 2: QA
-  qualityReview QualityReview?
-
-  invoices       Invoice[]
-  bankStatement  BankStatement?
-  tags           Tag[]
-  notes          String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
+  // Relations
+  documents      Document[] // Uploaded documents
+  assignedDocs   Document[] @relation("AssignedDocuments") // Assigned documents
+  teams          Team[]   @relation("TeamMembers")
+  
+  auditLogs      AuditLog[]
+  reviews        QualityReview[]
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
+
+model Organization {
+  id            String   @id @default(cuid())
+  name          String
+  type          String   @default("CLIENT") // MASTER_CLIENT, SUB_CLIENT, INTERNAL
+  status        String   @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  credits       Int      @default(0)
+
+  parentId      String?
+  parent        Organization? @relation("OrganizationHierarchy", fields: [parentId], references: [id])
+  children      Organization[] @relation("OrganizationHierarchy")
+  
+  users         User[]
+  documents     Document[]
+  teams         Team[]
+  subscription  Subscription?
+  auditLogs     AuditLog[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+
+// --- DATA EXTRACTION MODELS ---
 
 model Invoice {
   id            String   @id @default(cuid())
@@ -152,10 +125,10 @@ model Invoice {
   exchangeRate       Float?   @default(1.0)
   baseSubTotal       Float?
   baseTaxTotal       Float?
+  baseVatRate        Float?   @default(0)
   baseCurrencyAmount Float? // Gross in Base Currency
   
   vatRate            Float?   @default(0)
-  baseVatRate        Float?   @default(0)
   
   notes              String?
   
@@ -183,24 +156,42 @@ model LineItem {
 
 model BankStatement {
   id            String   @id @default(cuid())
-  displayName   String?
-  statementType String   @default("BANK")
-  
-  accountInfo   String?
-  last4Digits   String?
-  currency      String   @default("GBP")
-  
-  startDate     DateTime?
-  endDate       DateTime?
-  
-  status        String   @default("PROCESSING")
-  
   documentId    String   @unique
   document      Document @relation(fields: [documentId], references: [id])
+  
+  accountTitle  String?
+  accountNumber String?
+  iban          String?
+  currency      String   @default("USD")
+  address       String?
+  
+  fromDate      DateTime?
+  toDate        DateTime?
+  
+  openingBalance Float?  @default(0)
+  closingBalance Float?  @default(0)
+  
+  transactions  BankTransaction[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
+model BankTransaction {
+  id              String        @id @default(cuid())
+  bankStatementId String
+  bankStatement   BankStatement @relation(fields: [bankStatementId], references: [id], onDelete: Cascade)
+  
+  bookingDate     DateTime?
+  description     String?
+  
+  credit          Float?   @default(0)
+  debit           Float?   @default(0)
+  availableBalance Float?  @default(0)
+  
+  createdAt       DateTime @default(now())
+}
+
 
 model Tag {
   id    String @id @default(cuid())
@@ -235,8 +226,40 @@ model Subscription {
   
   plan           String   @default("FREE")
   status         String   @default("ACTIVE")
+  
+  packageId      String?
+  package        Package? @relation(fields: [packageId], references: [id])
+
   startDate      DateTime @default(now())
+  endDate        DateTime?
   renewalDate    DateTime?
+  remainingCredits Int @default(0)
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions String   @db.Text // JSON list of permissions e.g. ["invoices.view", "users.manage"]
+  isSystem    Boolean  @default(false)
+  
+  users       User[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Package {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  description    String?
+  price          Float
+  monthlyCredits Int
+  
+  subscriptions  Subscription[]
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model Team {

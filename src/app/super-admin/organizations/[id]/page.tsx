@@ -2,9 +2,10 @@ import { getChildOrganizations } from '@/lib/actions/organization';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 
-export default async function OrganizationDetailsPage({ params }: { params: { id: string } }) {
+export default async function OrganizationDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const org = await prisma.organization.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: {
             users: true,
             _count: { select: { children: true, documents: true } }
@@ -34,7 +35,7 @@ export default async function OrganizationDetailsPage({ params }: { params: { id
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-xl border shadow-sm">
                     <div className="text-sm text-gray-500 mb-1">Credits Available</div>
-                    <div className="text-2xl font-bold">{org.credits.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">{(org.credits || 0).toLocaleString()}</div>
                 </div>
                 <div className="bg-white p-6 rounded-xl border shadow-sm">
                     <div className="text-sm text-gray-500 mb-1">Total Documents</div>

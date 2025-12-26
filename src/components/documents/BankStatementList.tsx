@@ -83,7 +83,7 @@ export function BankStatementList({ documents, isRecycleBin = false }: BankState
                             <th className="p-4 w-10">
                                 <input type="checkbox" className="rounded border-slate-300" />
                             </th>
-                            <th className="p-4 w-10"></th> {/* Action Icon */}
+                            <th className="p-4 w-10"></th>
                             <th className="p-4">Doc ID</th>
                             <th className="p-4">Doc Type</th>
                             <th className="p-4">Display Name</th>

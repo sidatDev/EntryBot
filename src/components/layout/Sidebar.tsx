@@ -24,7 +24,7 @@ function getNavVisibility(permissions: UserPermissions) {
     const ADMIN_PERMISSIONS = "*";
 
     // If admin, show everything
-    if (permissions.permissions.includes(ADMIN_PERMISSIONS)) {
+    if (permissions.role === "ADMIN" || permissions.permissions.includes(ADMIN_PERMISSIONS)) {
         return {
             showDashboard: true,
             showInvoices: true,

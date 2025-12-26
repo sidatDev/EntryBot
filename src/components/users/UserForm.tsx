@@ -26,9 +26,11 @@ interface UserFormProps {
     organizations: Organization[];
     onSuccess?: () => void;
     onCancel?: () => void;
+    initialOrganizationId?: string;
+    redirectOnSuccess?: string;
 }
 
-export function UserForm({ customRoles, organizations, onSuccess, onCancel }: UserFormProps) {
+export function UserForm({ customRoles, organizations, onSuccess, onCancel, initialOrganizationId, redirectOnSuccess }: UserFormProps) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
@@ -40,8 +42,7 @@ export function UserForm({ customRoles, organizations, onSuccess, onCancel }: Us
         confirmPassword: "",
         role: "CLIENT", // Default
         customRoleId: "",
-        organizationId: "",
-        status: true, // true = ACTIVE
+        organizationId: initialOrganizationId || "",
         sendWelcomeEmail: true
     });
 
@@ -61,7 +62,10 @@ export function UserForm({ customRoles, organizations, onSuccess, onCancel }: Us
         }
     };
 
+    // ... (rest of the file until handleSubmit success block)
+
     const handleSubmit = async (e: React.FormEvent) => {
+        // ... (validation logic kept same)
         e.preventDefault();
         console.log("Submit triggered", formData);
         setError("");
@@ -90,19 +94,25 @@ export function UserForm({ customRoles, organizations, onSuccess, onCancel }: Us
                 sendWelcomeEmail: formData.sendWelcomeEmail
             });
             router.refresh();
-            setFormData({
-                name: "",
-                email: "",
-                password: "",
-                confirmPassword: "",
-                role: "CLIENT",
-                customRoleId: "",
-                organizationId: "",
-                status: true,
-                sendWelcomeEmail: true
-            });
-            onSuccess?.();
+
+            if (redirectOnSuccess) {
+                router.push(redirectOnSuccess);
+            } else {
+                setFormData({
+                    name: "",
+                    email: "",
+                    password: "",
+                    confirmPassword: "",
+                    role: "CLIENT",
+                    customRoleId: "",
+                    organizationId: "",
+                    status: true,
+                    sendWelcomeEmail: true
+                });
+                onSuccess?.();
+            }
         } catch (err: any) {
+
             setError(err.message || "Failed to create user");
         } finally {
             setIsLoading(false);
@@ -199,7 +209,7 @@ export function UserForm({ customRoles, organizations, onSuccess, onCancel }: Us
                         <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="ADMIN">Admin (Full Access)</SelectItem>
+                        <SelectItem value="ADMIN">Super Admin (Full Access)</SelectItem>
                         <SelectItem value="CLIENT">Client (Standard Access)</SelectItem>
                         {customRoles.map(role => (
                             <SelectItem key={role.id} value={role.id}>

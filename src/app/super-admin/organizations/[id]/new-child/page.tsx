@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react";
+import { useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { createOrganization } from "@/lib/actions/organization";
 
-export default function NewChildOrganizationPage({ params }: { params: { id: string } }) {
+export default function NewChildOrganizationPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -16,7 +17,7 @@ export default function NewChildOrganizationPage({ params }: { params: { id: str
         const data = {
             name: formData.get('name') as string,
             type: "CHILD_CLIENT" as const,
-            parentId: params.id, // Link to Parent Master Client
+            parentId: id, // Link to Parent Master Client
             adminName: formData.get('adminName') as string,
             adminEmail: formData.get('adminEmail') as string,
             adminPassword: formData.get('adminPassword') as string,
@@ -28,7 +29,7 @@ export default function NewChildOrganizationPage({ params }: { params: { id: str
             setError(result.error);
             setLoading(false);
         } else {
-            router.push(`/super-admin/organizations/${params.id}`);
+            router.push(`/super-admin/organizations/${id}`);
             router.refresh();
         }
     }

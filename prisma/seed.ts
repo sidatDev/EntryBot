@@ -17,7 +17,9 @@ async function main() {
     for (const role of roles) {
         await prisma.role.upsert({
             where: { name: role.name },
-            update: {},
+            update: {
+                permissions: JSON.stringify(role.permissions),
+            },
             create: {
                 name: role.name,
                 description: role.description,
@@ -30,36 +32,33 @@ async function main() {
 
     // 2. Create Default Internal Organization
     const internalOrg = await prisma.organization.upsert({
-        where: { name: "EntryBot Internal" },
+        where: { id: "entrybot-internal-org" },
         update: {},
         create: {
+            id: "entrybot-internal-org",
             name: "EntryBot Internal",
-            type: "INTERNAL",
-            status: "ACTIVE",
-            credits: 999999,
         },
     });
     console.log(`🏢 Organization ensured: ${internalOrg.name}`);
 
     // 3. Upsert Super Admin User
-    const password = await hash(process.env.ADMIN_PASSWORD || "admin", 12);
+    const password = await hash(process.env.ADMIN_PASSWORD || "password123", 12);
     const superAdminRole = await prisma.role.findUnique({ where: { name: "SUPER_ADMIN" } });
 
     const user = await prisma.user.upsert({
-        where: { email: "admin@entrybot.ai" },
+        where: { email: "admin@entrybot.io" },
         update: {
             organizationId: internalOrg.id,
-            customRoleId: superAdminRole?.id,
-            role: "ADMIN", // Legacy fallback
+            role: "ADMIN",
+            customRoleId: superAdminRole?.id, // Link to Custom Role
         },
         create: {
-            email: "admin@entrybot.ai",
+            email: "admin@entrybot.io",
             name: "Super Admin",
-            password,
+            passwordHash: password,
             role: "ADMIN",
             organizationId: internalOrg.id,
-            customRoleId: superAdminRole?.id,
-            status: "ACTIVE",
+            customRoleId: superAdminRole?.id, // Link to Custom Role
         },
     });
 

@@ -1,0 +1,11 @@
+
+✅ === CREDENTIALS SUMMARY ===
+🔐 Super Admin:
+   Email: admin@entrybot.io
+   Password: password123 (Default)
+
+❌ No Master Client found
+
+🔐 Child Client (Ayanna Vaughan):
+   Email: fodoguk@mailinator.com
+   Password: welcome123 (Default)

@@ -28,10 +28,16 @@ export async function uploadDocument(formData: FormData) {
     if (!allowedTypes.includes(file.type)) throw new Error("Invalid file type");
 
     // BILLING: Check if user's organization has credits
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { organizationId: true } });
-    if (user?.organizationId) {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { organizationId: true, role: true }
+    });
+    if (!user) throw new Error("User not found");
+
+    if (user.organizationId && user.role !== "ADMIN") {
         // We block upload if 0 credits. Alternatively, we could block only at "Processing" stage.
         // Decision: Block at Upload to prevent storage spam from free/expired accounts.
+        // Admins are exempt from credit checks.
         const canUpload = await hasCredits(user.organizationId);
         if (!canUpload) {
             throw new Error("Insufficient credits. Please upgrade your plan.");
@@ -48,7 +54,7 @@ export async function uploadDocument(formData: FormData) {
             url: publicUrl,
             size: file.size,
             type: file.type === "application/pdf" ? "PDF" : "IMAGE",
-            userId: userId,
+            uploaderId: userId,
             status: "UPLOADED",
             category: category,
             source: "UPLOAD"
@@ -115,7 +121,7 @@ export async function mergeDocuments(documentIds: string[], userId: string) {
             url: publicUrl,
             size: pdfBytes.length,
             type: "PDF",
-            userId: userId,
+            uploaderId: userId,
             status: "UPLOADED",
             category: documents[0].category,
             source: "MERGE_OPERATION"
@@ -151,7 +157,7 @@ export async function splitDocument(documentId: string) {
                 url: publicUrl,
                 size: subBytes.length,
                 type: "PDF",
-                userId: doc.userId,
+                uploaderId: doc.uploaderId,
                 status: "UPLOADED",
                 category: doc.category,
                 source: "SPLIT_OPERATION"
@@ -811,12 +817,12 @@ export async function createUser(data: {
         data: {
             name: data.name,
             email: data.email,
-            password: hashedPassword,
+            passwordHash: hashedPassword,
             role: genericRole,
-            customRoleId: data.customRoleId || null,
-            organizationId: data.organizationId || null,
             status: data.status || "ACTIVE",
-            integrationStatus: "NONE"
+            // Use connect syntax to avoid 'Unknown argument' scalar errors if client is stale
+            ...(data.customRoleId ? { customRole: { connect: { id: data.customRoleId } } } : {}),
+            ...(data.organizationId ? { organization: { connect: { id: data.organizationId } } } : {})
         }
     });
 
@@ -838,7 +844,8 @@ export async function updateUser(userId: string, data: {
     if (data.email) updateData.email = data.email;
     if (data.status) updateData.status = data.status;
     if (data.organizationId !== undefined) updateData.organizationId = data.organizationId;
-    if (data.password) updateData.password = await hash(data.password, 12);
+    if (data.organizationId !== undefined) updateData.organizationId = data.organizationId;
+    if (data.password) updateData.passwordHash = await hash(data.password, 12);
 
     if (data.role) {
         if (data.role === "ADMIN") {
@@ -909,3 +916,84 @@ export async function deleteRole(roleId: string) {
     await prisma.role.delete({ where: { id: roleId } });
     revalidatePath("/roles");
 }
+
+// --- BANK STATEMENTS ---
+
+export async function saveBankStatement(data: {
+    documentId: string;
+    accountTitle?: string;
+    accountNumber?: string;
+    iban?: string;
+    currency?: string;
+    address?: string;
+    fromDate?: string;
+    toDate?: string;
+    openingBalance?: number;
+    closingBalance?: number;
+    transactions: {
+        bookingDate?: string;
+        description?: string;
+        credit?: number;
+        debit?: number;
+        availableBalance?: number;
+    }[];
+}) {
+    // 1. Delete existing if exists (simple way to update/overwrite)
+    // Or upsert? define unique constraint on documentId
+    // The schema says documentId @unique
+
+    // Check if exists
+    const existing = await prisma.bankStatement.findUnique({
+        where: { documentId: data.documentId }
+    });
+
+    const statementData = {
+        accountTitle: data.accountTitle,
+        accountNumber: data.accountNumber,
+        iban: data.iban,
+        currency: data.currency || "USD",
+        address: data.address,
+        fromDate: data.fromDate ? new Date(data.fromDate) : null,
+        toDate: data.toDate ? new Date(data.toDate) : null,
+        openingBalance: data.openingBalance,
+        closingBalance: data.closingBalance,
+        transactions: {
+            create: data.transactions.map(t => ({
+                bookingDate: t.bookingDate ? new Date(t.bookingDate) : null,
+                description: t.description,
+                credit: t.credit,
+                debit: t.debit,
+                availableBalance: t.availableBalance
+            }))
+        }
+    };
+
+    if (existing) {
+        // Update: Delete all transactions and recreate (simplest for full form save)
+        await prisma.bankTransaction.deleteMany({
+            where: { bankStatementId: existing.id }
+        });
+
+        await prisma.bankStatement.update({
+            where: { id: existing.id },
+            data: statementData
+        });
+    } else {
+        await prisma.bankStatement.create({
+            data: {
+                documentId: data.documentId,
+                ...statementData
+            }
+        });
+    }
+
+    // Update document status
+    await prisma.document.update({
+        where: { id: data.documentId },
+        data: { status: "COMPLETED" }
+    });
+
+    revalidatePath(`/documents/${data.documentId}/process`);
+    revalidatePath("/documents");
+}
+
