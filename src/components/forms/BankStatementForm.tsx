@@ -86,7 +86,10 @@ export function BankStatementForm({ documentId, documentUrl }: { documentId: str
             const response = await fetch("/api/process-ai", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url: documentUrl, documentId }),
+                body: JSON.stringify({
+                    url: documentUrl,
+                    documentType: 2 // 2 for Bank Statement
+                }),
             });
 
             if (!response.ok) throw new Error("Failed to process document");

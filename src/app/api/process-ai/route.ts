@@ -71,19 +71,29 @@ function parseAmount(amountStr?: string | null): number {
 
 export async function POST(req: Request) {
     try {
-        const { url, documentId } = await req.json();
+        // Updated to expect 'url' instead of 'documentUrl'
+        // Allow passing documentType from client (1=Invoice, 2=Statement)
+        const { url, documentId, documentType } = await req.json();
 
         if (!url) {
             return NextResponse.json({ error: "URL is required" }, { status: 400 });
         }
 
-        console.log(`[Process-AI] Processing URL: ${url}`);
+        console.log(`[Process-AI] Processing URL: ${url} | Type: ${documentType}`);
+
         const ocrServiceUrl = "https://paddle-ocr.sidattech.com/process-url";
+
+        // Call External OCR Service
+        // User requested payload format: { documentType: 2, url: "..." }
+        const payload: any = { url };
+        if (documentType) {
+            payload.documentType = documentType;
+        }
 
         const response = await fetch(ocrServiceUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url }),
+            body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
