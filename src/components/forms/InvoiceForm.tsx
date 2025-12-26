@@ -86,6 +86,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
     const vatRate = watch("vatRate");
     const netAmount = watch("netAmount");
     const taxAmount = watch("taxAmount");
+    const ocrServiceUrl = process.env.OCR_SERVICE_URL;
 
     // Effect 1: Line Items -> Transaction Net Amount
     useEffect(() => {
@@ -166,14 +167,18 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
     const handleAutoFill = async () => {
         setProcessingAi(true);
         try {
-            // Updated to send 'url' instead of 'documentUrl'
-            const response = await fetch("/api/process-ai", {
+            // INTERNAL PROXY: We must call our own server first to avoid CORS errors and to save data to the DB.
+            // Our server then forwards this to https://paddle-ocr.sidattech.com/process-url
+            const response = await fetch("/api/process-url", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url: documentUrl, documentId }),
+                body: JSON.stringify({ url: documentUrl, documentType: 1 }),
             });
 
-            if (!response.ok) throw new Error("Failed to process document");
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Failed to process document (${response.status})`);
+            }
             const data = await response.json();
 
             if (data.invoiceNumber) setValue("invoiceNumber", data.invoiceNumber);

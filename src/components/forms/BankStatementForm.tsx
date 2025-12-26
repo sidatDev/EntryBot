@@ -38,6 +38,7 @@ export function BankStatementForm({ documentId, documentUrl }: { documentId: str
     const [processingAi, setProcessingAi] = useState(false);
     const [transactions, setTransactions] = useState<BankTransaction[]>([]);
     const [metadata, setMetadata] = useState<any>(null);
+    const ocrServiceUrl = process.env.OCR_SERVICE_URL;
 
     useEffect(() => {
         getDocumentMetadata(documentId).then(setMetadata);
@@ -83,7 +84,8 @@ export function BankStatementForm({ documentId, documentUrl }: { documentId: str
     const handleAutoFill = async () => {
         setProcessingAi(true);
         try {
-            const response = await fetch("/api/process-ai", {
+
+            const response = await fetch("/api/process-url", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -92,7 +94,10 @@ export function BankStatementForm({ documentId, documentUrl }: { documentId: str
                 }),
             });
 
-            if (!response.ok) throw new Error("Failed to process document");
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Failed to process document (${response.status})`);
+            }
             const data = await response.json();
 
             if (data.type === "STATEMENT") {

@@ -18,6 +18,7 @@ model Document {
   size          Int
   
   status        String   @default("PENDING") // PENDING, PROCESSING, REVIEW_REQUIRED, COMPLETED
+  approvalStatus String? @default("PENDING") // PENDING, APPROVED, REJECTED
   extractedText String?  @db.Text
   
   // New: Categorization
