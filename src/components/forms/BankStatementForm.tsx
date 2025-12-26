@@ -35,6 +35,7 @@ interface BankTransaction {
 export function BankStatementForm({ documentId, documentUrl }: { documentId: string; documentUrl: string }) {
     const router = useRouter();
     const [saving, setSaving] = useState(false);
+    const [processingAi, setProcessingAi] = useState(false);
     const [transactions, setTransactions] = useState<BankTransaction[]>([]);
     const [metadata, setMetadata] = useState<any>(null);
 
@@ -79,6 +80,51 @@ export function BankStatementForm({ documentId, documentUrl }: { documentId: str
         }
     };
 
+    const handleAutoFill = async () => {
+        setProcessingAi(true);
+        try {
+            const response = await fetch("/api/process-ai", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url: documentUrl, documentId }),
+            });
+
+            if (!response.ok) throw new Error("Failed to process document");
+            const data = await response.json();
+
+            if (data.type === "STATEMENT") {
+                // Populate Account Info
+                if (data.accountTitle) form.setValue("accountTitle", data.accountTitle);
+                if (data.accountNumber) form.setValue("accountNumber", data.accountNumber);
+                if (data.iban) form.setValue("iban", data.iban);
+                if (data.address) form.setValue("address", data.address);
+                if (data.currency) form.setValue("currency", data.currency);
+
+                // Populate Period & Balances
+                if (data.fromDate) form.setValue("fromDate", data.fromDate);
+                if (data.toDate) form.setValue("toDate", data.toDate);
+                if (data.openingBalance !== undefined) form.setValue("openingBalance", data.openingBalance);
+                if (data.closingBalance !== undefined) form.setValue("closingBalance", data.closingBalance);
+
+                // Populate Transactions
+                if (data.transactions && Array.isArray(data.transactions)) {
+                    setTransactions(data.transactions.map((t: any) => ({
+                        id: Math.random().toString(36).substr(2, 9),
+                        bookingDate: t.bookingDate || "",
+                        description: t.description || "",
+                        debit: Number(t.debit) || 0,
+                        credit: Number(t.credit) || 0,
+                        availableBalance: Number(t.availableBalance) || 0
+                    })));
+                }
+            }
+        } catch (error) {
+            console.error("AI Processing Error:", error);
+        } finally {
+            setProcessingAi(false);
+        }
+    };
+
     // Transaction Management
     const addTransaction = () => {
         setTransactions([...transactions, {
@@ -118,6 +164,14 @@ export function BankStatementForm({ documentId, documentUrl }: { documentId: str
                         <div className="text-xs text-slate-500 mt-0.5">ID: <span className="font-mono text-slate-700">{documentId.split('-')[0]}...</span></div>
                     </div>
                 </div>
+                <button
+                    onClick={handleAutoFill}
+                    disabled={processingAi}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-emerald-100 text-emerald-600 rounded-full hover:bg-emerald-50 hover:border-emerald-200 transition-all text-sm font-medium shadow-sm disabled:opacity-50"
+                >
+                    {processingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    Auto-fill
+                </button>
             </div>
 
             {/* Scrollable Area */}

@@ -10,7 +10,8 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 
 export function ProcessPageClient({ document, initialInvoices }: { document: any, initialInvoices: any[] }) {
-    const [mode, setMode] = useState<"INVOICE" | "BANK_STATEMENT">("INVOICE");
+    const isStatement = document.category === "STATEMENT";
+    const [mode, setMode] = useState<"INVOICE" | "BANK_STATEMENT">(isStatement ? "BANK_STATEMENT" : "INVOICE");
 
     return (
         <div className="fixed inset-0 top-0 left-64 z-0 flex flex-col h-screen bg-slate-50">

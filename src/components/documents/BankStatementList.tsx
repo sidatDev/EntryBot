@@ -93,12 +93,13 @@ export function BankStatementList({ documents, isRecycleBin = false }: BankState
                             <th className="p-4">Currency</th>
                             <th className="p-4">Start Date</th>
                             <th className="p-4">End Date</th>
+                            <th className="p-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                         {documents.length === 0 ? (
                             <tr>
-                                <td colSpan={11} className="p-8 text-center text-slate-400">
+                                <td colSpan={12} className="p-8 text-center text-slate-400">
                                     No statements found. Upload one to get started.
                                 </td>
                             </tr>
@@ -138,6 +139,14 @@ export function BankStatementList({ documents, isRecycleBin = false }: BankState
                                     </td>
                                     <td className="p-4">
                                         {doc.bankStatement?.endDate ? format(new Date(doc.bankStatement.endDate), "dd MMM yyyy") : "—"}
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        <Link
+                                            href={`/documents/${doc.id}/process`}
+                                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded text-xs font-semibold transition-colors"
+                                        >
+                                            <Edit className="h-3 w-3" /> Process
+                                        </Link>
                                     </td>
                                 </tr>
                             ))

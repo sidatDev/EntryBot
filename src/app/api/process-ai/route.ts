@@ -4,27 +4,44 @@ import { prisma } from "@/lib/prisma";
 // Define response type from External OCR Service
 interface ExternalOCRResponse {
     raw_text: string;
+    documentType?: number; // 1 = Invoice, 2 = Statement
     structured_data: {
+        // Invoice Fields
         Document_Number?: string | null;
         Document_Date?: string | null;
         Due_Payment_Date?: string | null;
         Contact_Name?: string | null;
-
-        // Amounts
         Gross_Amount?: string | null;
         Net_Amount_invoice_currency?: string | null;
         VAT_GST_Amount_invoice_currency?: string | null;
         VAT_GST_Rate_invoice_currency?: string | null;
-
-        // Currency
         Transaction_Currency?: string | null;
-
-        // Line Items
         line_items?: Array<{
             item_description?: string;
             unit_price?: string;
             quantity?: string;
             total?: string;
+        }>;
+
+        // Bank Statement Fields
+        accountTitle?: string | null;
+        accountNumber?: string | null;
+        iban?: string | null;
+        address?: string | null;
+        fromDate?: string | null;
+        toDate?: string | null;
+        currency?: string | null;
+        openingBalance?: number | null;
+        closingBalance?: number | null;
+        transactions?: Array<{
+            date?: string;
+            bookingDate?: string;
+            Description?: string;
+            description?: string;
+            debit?: number | null;
+            credit?: number | null;
+            balance?: number | null;
+            availableBalance?: number | null;
         }>;
     };
     status: string;
@@ -32,9 +49,6 @@ interface ExternalOCRResponse {
 
 function parseDate(dateStr?: string | null): string | null {
     if (!dateStr) return null;
-    // Expected format: DD/MM/YYYY
-    // Return format: YYYY-MM-DD
-
     const parts = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (parts) {
         const day = parts[1].padStart(2, '0');
@@ -42,12 +56,10 @@ function parseDate(dateStr?: string | null): string | null {
         const year = parts[3];
         return `${year}-${month}-${day}`;
     }
-
     const d = new Date(dateStr);
     if (!isNaN(d.getTime())) {
         return d.toISOString().split('T')[0];
     }
-
     return null;
 }
 
@@ -59,7 +71,6 @@ function parseAmount(amountStr?: string | null): number {
 
 export async function POST(req: Request) {
     try {
-        // Updated to expect 'url' instead of 'documentUrl'
         const { url, documentId } = await req.json();
 
         if (!url) {
@@ -67,15 +78,11 @@ export async function POST(req: Request) {
         }
 
         console.log(`[Process-AI] Processing URL: ${url}`);
-
         const ocrServiceUrl = "https://paddle-ocr.sidattech.com/process-url";
 
-        // Call External OCR Service
         const response = await fetch(ocrServiceUrl, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ url }),
         });
 
@@ -86,40 +93,62 @@ export async function POST(req: Request) {
         }
 
         const result = await response.json() as ExternalOCRResponse;
-        console.log(`[Process-AI] OCR Success. Status: ${result.status}`);
+        console.log(`[Process-AI] OCR Success. Status: ${result.status}, Type: ${result.documentType}`);
 
         const data = result.structured_data;
+        let mappedData: any = {};
 
-        // Map to Internal Format
-        const mappedData = {
-            invoiceNumber: data.Document_Number || "",
-            date: parseDate(data.Document_Date),
-            dueDate: parseDate(data.Due_Payment_Date),
-            supplierName: data.Contact_Name || "",
-            customerName: "",
-
-            totalAmount: parseAmount(data.Gross_Amount),
-            taxTotal: parseAmount(data.VAT_GST_Amount_invoice_currency),
-            subTotal: parseAmount(data.Net_Amount_invoice_currency),
-            vatRate: parseAmount(data.VAT_GST_Rate_invoice_currency),
-            currency: data.Transaction_Currency || "USD",
-
-            lineItems: (data.line_items || []).map(item => ({
-                description: item.item_description || "",
-                quantity: parseAmount(item.quantity || "1"),
-                unitPrice: parseAmount(item.unit_price || "0"),
-                total: parseAmount(item.total || "0")
-            }))
-        };
+        // 1 = Invoice (Default), 2 = Statement
+        if (result.documentType === 2) {
+            // Map Bank Statement
+            mappedData = {
+                type: "STATEMENT",
+                accountTitle: data.accountTitle || "",
+                accountNumber: data.accountNumber || "",
+                iban: data.iban || "",
+                address: data.address || "",
+                fromDate: parseDate(data.fromDate),
+                toDate: parseDate(data.toDate),
+                currency: data.currency || "USD",
+                openingBalance: data.openingBalance || 0,
+                closingBalance: data.closingBalance || 0,
+                transactions: (data.transactions || []).map(t => ({
+                    bookingDate: parseDate(t.date || t.bookingDate),
+                    description: t.Description || t.description || "",
+                    debit: t.debit || 0,
+                    credit: t.credit || 0,
+                    // If balance is provided in API use it, otherwise mapped to availableBalance
+                    availableBalance: t.balance || t.availableBalance || 0
+                }))
+            };
+        } else {
+            // Map Invoice
+            mappedData = {
+                type: "INVOICE",
+                invoiceNumber: data.Document_Number || "",
+                date: parseDate(data.Document_Date),
+                dueDate: parseDate(data.Due_Payment_Date),
+                supplierName: data.Contact_Name || "",
+                totalAmount: parseAmount(data.Gross_Amount),
+                taxTotal: parseAmount(data.VAT_GST_Amount_invoice_currency),
+                subTotal: parseAmount(data.Net_Amount_invoice_currency),
+                vatRate: parseAmount(data.VAT_GST_Rate_invoice_currency),
+                currency: data.Transaction_Currency || "USD",
+                lineItems: (data.line_items || []).map(item => ({
+                    description: item.item_description || "",
+                    quantity: parseAmount(item.quantity || "1"),
+                    unitPrice: parseAmount(item.unit_price || "0"),
+                    total: parseAmount(item.total || "0")
+                }))
+            };
+        }
 
         // Update Database with Extracted Text
         if (documentId && result.raw_text) {
             try {
                 await prisma.document.update({
                     where: { id: documentId },
-                    data: {
-                        extractedText: result.raw_text,
-                    }
+                    data: { extractedText: result.raw_text }
                 });
                 console.log(`[Process-AI] Updated Document ${documentId} with extracted text.`);
             } catch (dbError) {
