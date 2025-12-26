@@ -21,7 +21,7 @@ async function main() {
         create: {
             email,
             name: 'Admin User',
-            password: hashedPassword,
+            passwordHash: hashedPassword,
             role: 'ADMIN',
             status: 'ACTIVE'
         },
