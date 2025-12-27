@@ -11,7 +11,7 @@ async function main() {
             email: true,
             role: true,
             status: true,
-            password: true // Inspecting hash existence (not value)
+            passwordHash: true // Inspecting hash existence (not value)
         }
     });
     console.log(JSON.stringify(users, null, 2));
