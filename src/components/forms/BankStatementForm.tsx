@@ -13,12 +13,12 @@ const bankStatementSchema = z.object({
     accountTitle: z.string().optional(),
     accountNumber: z.string().optional(),
     iban: z.string().optional(),
-    currency: z.string().default("USD"),
+    currency: z.string(),
     address: z.string().optional(),
     fromDate: z.string().optional(),
     toDate: z.string().optional(),
-    openingBalance: z.number().default(0),
-    closingBalance: z.number().default(0),
+    openingBalance: z.number(),
+    closingBalance: z.number(),
 });
 
 type BankStatementFormValues = z.infer<typeof bankStatementSchema>;

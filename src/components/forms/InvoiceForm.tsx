@@ -16,21 +16,21 @@ const invoiceSchema = z.object({
     date: z.string().min(1, "Date is required"),
     dueDate: z.string().optional(),
     supplierName: z.string().optional(),
-    currency: z.string().default("USD"),
-    invoiceCurrency: z.string().default("USD"),
-    exchangeRate: z.number().default(1),
+    currency: z.string(),
+    invoiceCurrency: z.string(),
+    exchangeRate: z.number(),
 
     // Transaction Currency Fields
-    netAmount: z.number().default(0),
-    vatRate: z.number().default(0),
-    taxAmount: z.number().default(0),
-    totalAmount: z.number().default(0),
+    netAmount: z.number(),
+    vatRate: z.number(),
+    taxAmount: z.number(),
+    totalAmount: z.number(),
 
     // Base/Invoice Currency Fields
-    baseNetAmount: z.number().default(0),
-    baseVatRate: z.number().default(0),
-    baseTaxAmount: z.number().default(0),
-    baseTotalAmount: z.number().default(0),
+    baseNetAmount: z.number(),
+    baseVatRate: z.number(),
+    baseTaxAmount: z.number(),
+    baseTotalAmount: z.number(),
 
     paymentMethod: z.string().optional(),
     contactName: z.string().optional(),

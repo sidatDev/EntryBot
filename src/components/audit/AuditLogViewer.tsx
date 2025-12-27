@@ -50,7 +50,7 @@ export default async function AuditLogViewer({ organizationId }: { organizationI
                                     </span>
                                 </td>
                                 <td className="px-6 py-4 text-gray-600 max-w-xs truncate" title={JSON.stringify(log.details)}>
-                                    {log.resourceId}
+                                    {log.entityId}
                                 </td>
                             </tr>
                         ))}

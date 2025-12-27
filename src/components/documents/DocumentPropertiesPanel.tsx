@@ -14,14 +14,14 @@ interface DocumentPropertiesPanelProps {
 
 export function DocumentPropertiesPanel({ document }: DocumentPropertiesPanelProps) {
     const [isPending, startTransition] = useTransition();
-    const [note, setNote] = useState(document?.notes || "");
+    const [note, setNote] = useState("");
     const [newTag, setNewTag] = useState("");
     const [type, setType] = useState(document?.category === "STATEMENT" ? "Bank Statement"
         : document?.category === "GENERAL" ? "Invoice & Receipt"
             : "Other Document");
 
     // Sync state when selection changes
-    if (document && document.notes !== note && !isPending) {
+    if (document && !isPending) {
         // This is a simple (and slightly buggy) way to sync, usually better with useEffect
         // But for now, let's use useEffect in the component logic below or key-based reset
     }
@@ -39,7 +39,7 @@ export function DocumentPropertiesPanel({ document }: DocumentPropertiesPanelPro
     const handleSave = () => {
         startTransition(async () => {
             await updateDocumentDetails(document.id, {
-                notes: note,
+                // notes: note, // Removed as property doesn't exist on Document model
                 type: type
             });
         });

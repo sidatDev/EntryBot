@@ -99,7 +99,7 @@ export async function getUserStats(userId: string) {
             }
         },
         select: {
-            score: true,
+            status: true,
             createdAt: true
         },
         orderBy: { createdAt: 'desc' },
@@ -107,7 +107,7 @@ export async function getUserStats(userId: string) {
     });
 
     const averageScore = qaScores.length > 0
-        ? qaScores.reduce((acc, curr) => acc + (curr.score || 0), 0) / qaScores.length
+        ? qaScores.reduce((acc, curr) => acc + (curr.status === "PASSED" ? 100 : 0), 0) / qaScores.length
         : 100; // Default to 100 if no reviews
 
     return {

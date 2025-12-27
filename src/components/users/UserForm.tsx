@@ -43,6 +43,7 @@ export function UserForm({ customRoles, organizations, onSuccess, onCancel, init
         role: "CLIENT", // Default
         customRoleId: "",
         organizationId: initialOrganizationId || "",
+        status: true,
         sendWelcomeEmail: true
     });
 

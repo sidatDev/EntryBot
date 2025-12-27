@@ -90,7 +90,7 @@ export async function mergeDocuments(documentIds: string[], userId: string) {
     const documents = await prisma.document.findMany({
         where: {
             id: { in: documentIds },
-            userId: userId,
+            uploaderId: userId,
             type: "PDF",
             status: { not: "DELETED" }
         }
@@ -359,8 +359,7 @@ export async function saveInvoice(data: {
     await prisma.document.update({
         where: { id: data.documentId },
         data: {
-            status: nextStatus,
-            qaStatus: isQA ? "PENDING" : "NONE"
+            status: nextStatus
         },
     });
 
@@ -622,18 +621,16 @@ export async function updateBankStatementMetadata(documentId: string, data: {
         where: { documentId },
         create: {
             documentId,
-            displayName: data.displayName,
-            accountInfo: data.accountInfo,
-            last4Digits: data.last4Digits,
-            startDate: data.startDate ? new Date(data.startDate) : undefined,
-            endDate: data.endDate ? new Date(data.endDate) : undefined,
+            accountTitle: data.accountInfo,
+            accountNumber: data.last4Digits,
+            fromDate: data.startDate ? new Date(data.startDate) : undefined,
+            toDate: data.endDate ? new Date(data.endDate) : undefined,
         },
         update: {
-            displayName: data.displayName,
-            accountInfo: data.accountInfo,
-            last4Digits: data.last4Digits,
-            startDate: data.startDate ? new Date(data.startDate) : undefined,
-            endDate: data.endDate ? new Date(data.endDate) : undefined,
+            accountTitle: data.accountInfo,
+            accountNumber: data.last4Digits,
+            fromDate: data.startDate ? new Date(data.startDate) : undefined,
+            toDate: data.endDate ? new Date(data.endDate) : undefined,
         }
     });
     revalidatePath("/bank-statements");

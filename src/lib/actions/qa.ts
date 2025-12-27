@@ -17,13 +17,11 @@ export async function submitQualityReview(data: {
             documentId: data.documentId,
             reviewerId: data.reviewerId,
             status: data.status,
-            score: data.score,
             notes: data.notes
         },
         update: {
             reviewerId: data.reviewerId,
             status: data.status,
-            score: data.score,
             notes: data.notes
         }
     });
@@ -37,8 +35,7 @@ export async function submitQualityReview(data: {
     await prisma.document.update({
         where: { id: data.documentId },
         data: {
-            status: docStatus,
-            qaStatus: data.status
+            status: docStatus
         }
     });
 
