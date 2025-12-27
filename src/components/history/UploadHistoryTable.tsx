@@ -10,7 +10,7 @@ type DocumentWithUser = Document & {
     user: {
         name: string | null;
         email: string;
-    };
+    } | null;
 };
 
 interface UploadHistoryTableProps {
@@ -83,8 +83,8 @@ export function UploadHistoryTable({ documents, pagination }: UploadHistoryTable
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
-                                            <span className="text-slate-900">{doc.user.name || "Unknown"}</span>
-                                            <span className="text-xs text-slate-400">{doc.user.email}</span>
+                                            <span className="text-slate-900">{doc.user?.name || "Unknown"}</span>
+                                            <span className="text-xs text-slate-400">{doc.user?.email || "No Email"}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
@@ -99,9 +99,9 @@ export function UploadHistoryTable({ documents, pagination }: UploadHistoryTable
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${doc.status === "APPROVED" || doc.status === "COMPLETED" ? "bg-green-100 text-green-800" :
-                                                doc.status === "PROCESSING" ? "bg-blue-100 text-blue-800" :
-                                                    doc.status === "DELETED" ? "bg-red-100 text-red-800" :
-                                                        "bg-gray-100 text-gray-800"
+                                            doc.status === "PROCESSING" ? "bg-blue-100 text-blue-800" :
+                                                doc.status === "DELETED" ? "bg-red-100 text-red-800" :
+                                                    "bg-gray-100 text-gray-800"
                                             }`}>
                                             {doc.status}
                                         </span>
