@@ -286,11 +286,11 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
                                                     <td className="px-4 py-3 font-mono text-xs text-slate-600">
                                                         {idCard?.identityNumber || "-"}
                                                     </td>
-                                                    <td className="px-4 py-3 text-slate-600 text-xs">
-                                                        {idCard?.dateOfIssue ? new Date(idCard.dateOfIssue).toLocaleDateString() : "-"}
+                                                    <td className="px-4 py-3 text-slate-600 text-xs text-center">
+                                                        {idCard?.dateOfIssue ? new Date(idCard.dateOfIssue).toLocaleDateString('en-GB') : "-"}
                                                     </td>
-                                                    <td className="px-4 py-3 text-slate-600 text-xs">
-                                                        {idCard?.dateOfExpiry ? new Date(idCard.dateOfExpiry).toLocaleDateString() : "-"}
+                                                    <td className="px-4 py-3 text-slate-600 text-xs text-center">
+                                                        {idCard?.dateOfExpiry ? new Date(idCard.dateOfExpiry).toLocaleDateString('en-GB') : "-"}
                                                     </td>
                                                 </>
                                             ) : (

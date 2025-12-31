@@ -1,15 +1,15 @@
 "use client";
 
-import { Bell, Search, Menu } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import NotificationBell from "@/components/layout/NotificationBell";
 
-export function TopHeader({ toggleSidebar }: { toggleSidebar?: () => void }) {
+import { MobileSidebar } from "@/components/layout/MobileSidebar";
+
+export function TopHeader() {
     return (
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-8 sticky top-0 z-10">
             <div className="flex items-center gap-4">
-                <button onClick={toggleSidebar} className="p-2 hover:bg-gray-100 rounded-lg md:hidden text-gray-600">
-                    <Menu size={20} />
-                </button>
+                <MobileSidebar />
                 <div className="relative hidden md:block w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
