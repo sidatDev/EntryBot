@@ -177,9 +177,11 @@ export async function getDocumentMetadata(documentId: string) {
             status: true,
             category: true,
             createdAt: true,
+            url: true, // Need URL for double check
             user: {
                 select: { name: true }
-            }
+            },
+            identityCard: true // Allow fetching relation
         }
     });
     return doc;

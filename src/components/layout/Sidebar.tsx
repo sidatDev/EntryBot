@@ -97,6 +97,12 @@ const mainNavItems = [
         permissionKey: "showBankStatements"
     },
     {
+        title: "ID Cards (CNIC)",
+        href: "/id-cards",
+        icon: User, // Using User icon for ID Cards
+        permissionKey: "showBankStatements" // reusing existing permission key or adding new one? 'showInvoices' or 'showOtherDocuments' might be safer defaults if 'showIdCards' doesn't exist. Let's use 'showBankStatements' for now as it's a specific module.
+    },
+    {
         title: "Other Documents",
         href: "/other-documents",
         icon: Files,

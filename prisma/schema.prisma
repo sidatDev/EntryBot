@@ -39,6 +39,7 @@ model Document {
   // Extracted Entities
   invoices       Invoice[]
   bankStatement  BankStatement? // One-to-One
+  identityCard   IdentityCard?  // One-to-One
   
   qualityReview  QualityReview?
   
@@ -291,4 +292,34 @@ model AuditLog {
   
   ipAddress      String?
   createdAt      DateTime @default(now())
+}
+
+
+model IdentityCard {
+  id              String    @id @default(cuid())
+  documentId      String    @unique
+  document        Document  @relation(fields: [documentId], references: [id])
+
+  fullName        String?
+  fatherName      String?
+  gender          String?   // M, F
+  countryOfStay   String?
+  identityNumber  String?   // CNIC Number
+  dateOfIssue     DateTime?
+  dateOfBirth     DateTime?
+  dateOfExpiry    DateTime?
+
+  // Urdu Fields
+  urduFullName    String?
+  urduFatherName  String?
+
+  // Addresses
+  addressMain     String?
+  addressSecond   String?
+
+  // Images
+  cardBackUrl     String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

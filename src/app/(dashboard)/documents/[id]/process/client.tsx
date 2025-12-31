@@ -3,15 +3,23 @@
 import { DocumentViewer } from "@/components/document/DocumentViewer";
 import { InvoiceForm } from "@/components/forms/InvoiceForm";
 import { BankStatementForm } from "@/components/forms/BankStatementForm";
+import { IdentityCardForm } from "@/components/forms/IdentityCardForm";
 import { updateDocumentStatus } from "@/lib/actions";
-import { CheckCircle, FileText, Landmark } from "lucide-react";
+import { CheckCircle, FileText, Landmark, User, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 
 export function ProcessPageClient({ document, initialInvoices }: { document: any, initialInvoices: any[] }) {
     const isStatement = document.category === "STATEMENT";
-    const [mode, setMode] = useState<"INVOICE" | "BANK_STATEMENT">(isStatement ? "BANK_STATEMENT" : "INVOICE");
+    const isIdCard = document.category === "IDENTITY_CARD" || document.category === "ID_CARD"; // Handle legacy if any
+
+    // Determine default mode
+    let defaultMode: "INVOICE" | "BANK_STATEMENT" | "IDENTITY_CARD" = "INVOICE";
+    if (isStatement) defaultMode = "BANK_STATEMENT";
+    if (isIdCard) defaultMode = "IDENTITY_CARD";
+
+    const [mode, setMode] = useState<"INVOICE" | "BANK_STATEMENT" | "IDENTITY_CARD">(defaultMode);
 
     return (
         <div className="fixed inset-0 top-0 left-64 z-0 flex flex-col h-screen bg-slate-50">
@@ -47,7 +55,14 @@ export function ProcessPageClient({ document, initialInvoices }: { document: any
                         className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all ${mode === "BANK_STATEMENT" ? "bg-white text-emerald-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                     >
                         <Landmark className="h-3.5 w-3.5" />
-                        Bank Statement
+                        Bank
+                    </button>
+                    <button
+                        onClick={() => setMode("IDENTITY_CARD")}
+                        className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all ${mode === "IDENTITY_CARD" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                    >
+                        <CreditCard className="h-3.5 w-3.5" />
+                        ID Card
                     </button>
                 </div>
 
@@ -96,10 +111,14 @@ export function ProcessPageClient({ document, initialInvoices }: { document: any
                     <DocumentViewer url={document.url} type={document.type} />
                 </div>
                 <div className="w-1/2 h-full bg-white overflow-hidden">
-                    {mode === "INVOICE" ? (
+                    {mode === "INVOICE" && (
                         <InvoiceForm documentId={document.id} documentUrl={document.url} />
-                    ) : (
+                    )}
+                    {mode === "BANK_STATEMENT" && (
                         <BankStatementForm documentId={document.id} documentUrl={document.url} />
+                    )}
+                    {mode === "IDENTITY_CARD" && (
+                        <IdentityCardForm documentId={document.id} documentUrl={document.url} />
                     )}
                 </div>
             </div>

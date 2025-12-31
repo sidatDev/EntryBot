@@ -35,7 +35,9 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
         ? "SALES_INVOICE"
         : category === "PURCHASE_INVOICE"
             ? "PURCHASE_INVOICE"
-            : "SALES_INVOICE";
+            : category === "IDENTITY_CARD"
+                ? "IDENTITY_CARD"
+                : "SALES_INVOICE";
 
     const toggleSelection = (id: string) => {
         setSelectedIds((prev) =>
@@ -220,13 +222,25 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
                                     </button>
                                 </th>
                                 <th className="px-4 py-3 font-semibold whitespace-nowrap">Doc ID</th>
-                                <th className="px-4 py-3 font-semibold whitespace-nowrap">Doc Type</th>
-                                <th className="px-4 py-3 font-semibold whitespace-nowrap">Supplier Name</th>
-                                <th className="px-4 py-3 font-semibold whitespace-nowrap">Invoice Date</th>
-                                <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Amount <span className="text-xs opacity-75 block">(Invoice Curr.)</span></th>
-                                <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Amount <span className="text-xs opacity-75 block">(Base Curr.)</span></th>
+                                {category === "IDENTITY_CARD" ? (
+                                    <>
+                                        {/* ID Card Specific Headers */}
+                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Full Name</th>
+                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Identity Number</th>
+                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Date of Issue</th>
+                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Expiry Date</th>
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* Invoice / General Headers */}
+                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Doc Type</th>
+                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Supplier Name</th>
+                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Invoice Date</th>
+                                        <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Amount <span className="text-xs opacity-75 block">(Base)</span></th>
+                                    </>
+                                )}
+
                                 <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Category</th>
-                                <th className="px-4 py-3 font-semibold whitespace-nowrap">Payment Method</th>
                                 <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Approval</th>
                                 <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Actions</th>
                             </tr>
@@ -243,6 +257,7 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
                                     const isSelected = selectedIds.includes(doc.id);
                                     // Get latest invoice if available
                                     const invoice = doc.invoices?.[0];
+                                    const idCard = doc.identityCard;
 
                                     return (
                                         <tr key={doc.id} className={cn("transition-colors", isSelected ? "bg-indigo-50/50" : "hover:bg-slate-50/50")}>
@@ -261,56 +276,63 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
                                             <td className="px-4 py-3 font-mono text-xs text-slate-500">
                                                 {doc.id.slice(-6)}
                                             </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-2">
-                                                    {/* Status Indicator Circle */}
-                                                    <div className={cn("h-2.5 w-2.5 rounded-full",
-                                                        doc.status === "COMPLETED" ? "bg-green-500" :
-                                                            doc.status === "PROCESSING" ? "bg-amber-400 animate-pulse" :
-                                                                "bg-blue-400"
-                                                    )} title={doc.status}></div>
-                                                    <span className="text-slate-700">{doc.type}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-slate-900 font-medium">
-                                                {invoice?.supplierName || <span className="text-slate-400 italic">Processing...</span>}
-                                            </td>
-                                            <td className="px-4 py-3 text-slate-600">
-                                                {invoice?.date ? new Date(invoice.date).toLocaleDateString() : "-"}
-                                            </td>
-                                            <td className="px-4 py-3 text-right text-slate-900">
-                                                {invoice?.totalAmount ? invoice.totalAmount.toFixed(2) : ""}
-                                                <span className="text-xs text-slate-400 ml-1">{invoice?.currency}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right text-slate-900">
-                                                {/* Base Currency simulation (assuming 1:1 or stored) */}
-                                                {invoice?.baseCurrencyAmount ? invoice.baseCurrencyAmount.toFixed(2) : (invoice?.totalAmount || "")}
-                                                <span className="text-xs text-slate-400 ml-1">GBP</span> {/* Hardcoded for now per image */}
-                                            </td>
+
+                                            {category === "IDENTITY_CARD" ? (
+                                                <>
+                                                    {/* ID Card Data Cells */}
+                                                    <td className="px-4 py-3 font-medium text-slate-900">
+                                                        {idCard?.fullName || <span className="text-slate-400 italic">Processing...</span>}
+                                                    </td>
+                                                    <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                                                        {idCard?.identityNumber || "-"}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-600 text-xs">
+                                                        {idCard?.dateOfIssue ? new Date(idCard.dateOfIssue).toLocaleDateString() : "-"}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-600 text-xs">
+                                                        {idCard?.dateOfExpiry ? new Date(idCard.dateOfExpiry).toLocaleDateString() : "-"}
+                                                    </td>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {/* Invoice Data Cells */}
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={cn("h-2.5 w-2.5 rounded-full",
+                                                                doc.status === "COMPLETED" ? "bg-green-500" :
+                                                                    doc.status === "PROCESSING" ? "bg-amber-400 animate-pulse" :
+                                                                        "bg-blue-400"
+                                                            )} title={doc.status}></div>
+                                                            <span className="text-slate-700">{doc.type}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-900 font-medium">
+                                                        {invoice?.supplierName || <span className="text-slate-400 italic">Processing...</span>}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-600">
+                                                        {invoice?.date ? new Date(invoice.date).toLocaleDateString() : "-"}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right text-slate-900">
+                                                        {invoice?.baseCurrencyAmount ? invoice.baseCurrencyAmount.toFixed(2) : (invoice?.totalAmount || "")}
+                                                        <span className="text-xs text-slate-400 ml-1">GBP</span>
+                                                    </td>
+                                                </>
+                                            )}
+
                                             <td className="px-4 py-3">
                                                 <select
                                                     className="w-full text-xs border-slate-200 rounded px-2 py-1 bg-slate-50"
-                                                    value={doc.category}
+                                                    value={doc.category || "OTHER"} // Handle null category
                                                     onChange={(e) => handleInlineCategoryChange(doc.id, e.target.value)}
                                                     disabled={isRecycleBin}
                                                 >
                                                     {CATEGORY_OPTIONS.map(opt => (
                                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                                                     ))}
+                                                    <option value="IDENTITY_CARD">ID Card</option>
                                                 </select>
                                             </td>
-                                            <td className="px-4 py-3">
-                                                <select
-                                                    className="w-full text-xs border-slate-200 rounded px-2 py-1 bg-slate-50"
-                                                    value={invoice?.paymentMethod || "None"}
-                                                    onChange={(e) => handleInlinePaymentMethodChange(invoice?.id, e.target.value)}
-                                                    disabled={isRecycleBin || !invoice}
-                                                >
-                                                    {PAYMENT_METHODS.map(opt => (
-                                                        <option key={opt} value={opt}>{opt}</option>
-                                                    ))}
-                                                </select>
-                                            </td>
+
                                             <td className="px-4 py-3 text-center">
                                                 {doc.approvalStatus === "APPROVED" && (
                                                     <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
@@ -348,13 +370,6 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
                                                 <div className="flex items-center justify-end gap-2">
                                                     {!isRecycleBin && (
                                                         <>
-                                                            <button
-                                                                onClick={() => assignDocumentToMe(doc.id)}
-                                                                className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 text-xs font-semibold"
-                                                                title="Assign to Me"
-                                                            >
-                                                                Claim
-                                                            </button>
                                                             <Link
                                                                 href={`/documents/${doc.id}/process`}
                                                                 className="px-3 py-1 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 text-xs font-semibold flex items-center gap-1"

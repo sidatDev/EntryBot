@@ -13,12 +13,28 @@ interface UploadZoneProps {
 
 export function UploadZone({ category = "SALES_INVOICE" }: UploadZoneProps) {
     const { data: session } = useSession();
+    const [frontFile, setFrontFile] = useState<File | null>(null);
+    const [backFile, setBackFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const [files, setFiles] = useState<File[]>([]);
 
+    // Derived state to ensure it updates when prop changes
+    const idUploadMode = category === "IDENTITY_CARD";
+
     const onDrop = useCallback((acceptedFiles: File[]) => {
-        setFiles((prev) => [...prev, ...acceptedFiles]);
-    }, []);
+        if (idUploadMode) {
+            // In ID Mode, dropping files is tricky to map to front/back.
+            // For simplicity, if front is empty, take first as front. If front exists, take as back.
+            if (!frontFile && acceptedFiles.length > 0) {
+                setFrontFile(acceptedFiles[0]);
+                if (acceptedFiles.length > 1) setBackFile(acceptedFiles[1]);
+            } else if (frontFile && !backFile && acceptedFiles.length > 0) {
+                setBackFile(acceptedFiles[0]);
+            }
+        } else {
+            setFiles((prev) => [...prev, ...acceptedFiles]);
+        }
+    }, [idUploadMode, frontFile, backFile]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
@@ -26,6 +42,7 @@ export function UploadZone({ category = "SALES_INVOICE" }: UploadZoneProps) {
             "application/pdf": [".pdf"],
             "image/*": [".png", ".jpg", ".jpeg"],
         },
+        maxFiles: idUploadMode ? 2 : undefined
     });
 
     const handleUpload = async () => {
@@ -33,18 +50,51 @@ export function UploadZone({ category = "SALES_INVOICE" }: UploadZoneProps) {
         setUploading(true);
 
         try {
-            for (const file of files) {
+            if (idUploadMode) {
+                // IDENTITY CARD FLOW
+                if (!frontFile || !backFile) {
+                    alert("Both Front and Back side images are required");
+                    setUploading(false);
+                    return;
+                }
+
                 const formData = new FormData();
-                formData.append("file", file);
+                formData.append("frontFile", frontFile);
+                formData.append("backFile", backFile);
                 formData.append("userId", (session?.user as any)?.id);
-                formData.append("category", category);
-                console.log("Client: Uploading...", file.name);
-                await uploadDocument(formData);
-                console.log("Client: Upload complete");
+
+                console.log("Client: Uploading ID Card...");
+                // Keep this import dynamic or top-level? Top level is better. 
+                // Assuming logic to call the new action exists.
+                // We need to import the action. Since we can't change imports easily in this block,
+                // we'll assume the action is imported or we use a dynamic import workaround if needed.
+                // *Self-correction*: I should update imports in a separate step or add it here if I am replacing the whole file. 
+                // Since I am replacing a chunk, I need to make sure `uploadIdentityCardWithBackImage` is available.
+                // I will add the import in a separate `multi_replace` or just use `require` if specific to this block, strictly strict mode TS might block require.
+                // BETTER: I will replace the whole file content to ensure imports are clean. (Changing strategy to whole file replacer in next turn if this fails, but wait, `replace_file_content` checks imports? No.)
+                // I will update imports in a second edit.
+
+                const { uploadIdentityCardWithBackImage } = await import("@/lib/actions/upload-identity");
+                await uploadIdentityCardWithBackImage(formData);
+
+                setFrontFile(null);
+                setBackFile(null);
+
+            } else {
+                // STANDARD FLOW
+                for (const file of files) {
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    formData.append("userId", (session?.user as any)?.id);
+                    formData.append("category", category);
+                    console.log("Client: Uploading...", file.name);
+                    await uploadDocument(formData);
+                    console.log("Client: Upload complete");
+                }
+                setFiles([]);
             }
-            setFiles([]);
+
             // alert("Upload Successful!");
-            // Refresh to show new document in list if applicable
             window.location.reload();
         } catch (error) {
             console.error("Upload failed", error);
@@ -57,6 +107,82 @@ export function UploadZone({ category = "SALES_INVOICE" }: UploadZoneProps) {
     const removeFile = (index: number) => {
         setFiles((prev) => prev.filter((_, i) => i !== index));
     };
+
+    // --- ID CARD UI RENDERER ---
+    if (idUploadMode) {
+        return (
+            <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                    {/* FRONT SIDE */}
+                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-indigo-400 hover:bg-slate-50 transition-all relative">
+                        <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            onChange={(e) => {
+                                if (e.target.files?.[0]) setFrontFile(e.target.files[0]);
+                            }}
+                        />
+                        <div className="flex flex-col items-center gap-2">
+                            <div className={cn("h-12 w-12 rounded-full flex items-center justify-center", frontFile ? "bg-green-100 text-green-600" : "bg-indigo-50 text-indigo-600")}>
+                                {frontFile ? <FileIcon className="h-6 w-6" /> : <UploadCloud className="h-6 w-6" />}
+                            </div>
+                            <div className="text-sm font-medium text-slate-700">
+                                {frontFile ? frontFile.name : "Front Side"}
+                            </div>
+                            {!frontFile && <span className="text-xs text-slate-400">Click to Select</span>}
+                        </div>
+                        {frontFile && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setFrontFile(null); }}
+                                className="absolute top-2 right-2 text-slate-400 hover:text-red-500 z-10"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* BACK SIDE */}
+                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-indigo-400 hover:bg-slate-50 transition-all relative">
+                        <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            onChange={(e) => {
+                                if (e.target.files?.[0]) setBackFile(e.target.files[0]);
+                            }}
+                        />
+                        <div className="flex flex-col items-center gap-2">
+                            <div className={cn("h-12 w-12 rounded-full flex items-center justify-center", backFile ? "bg-green-100 text-green-600" : "bg-slate-100 text-slate-400")}>
+                                {backFile ? <FileIcon className="h-6 w-6" /> : <UploadCloud className="h-6 w-6" />}
+                            </div>
+                            <div className="text-sm font-medium text-slate-700">
+                                {backFile ? backFile.name : "Back Side (Required)"}
+                            </div>
+                            {!backFile && <span className="text-xs text-slate-400">Click to Select</span>}
+                        </div>
+                        {backFile && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setBackFile(null); }}
+                                className="absolute top-2 right-2 text-slate-400 hover:text-red-500 z-10"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <button
+                    onClick={handleUpload}
+                    disabled={uploading || !frontFile}
+                    className="w-full py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                >
+                    {uploading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {uploading ? "Uploading ID Card..." : "Upload ID Card"}
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">

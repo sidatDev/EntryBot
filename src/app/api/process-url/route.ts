@@ -74,13 +74,15 @@ export async function POST(req: Request) {
     try {
         // Updated to expect 'url' instead of 'documentUrl'
         // Allow passing documentType from client (1=Invoice, 2=Statement)
-        const { url, documentId, documentType } = await req.json();
+        const { url, urls, documentId, documentType, language } = await req.json();
 
-        if (!url) {
+        if (!url && (!urls || urls.length === 0)) {
             return NextResponse.json({ error: "URL is required" }, { status: 400 });
         }
 
-        console.log(`[Process-AI] Processing URL: ${url} | Type: ${documentType}`);
+        console.log(`[Process-AI] Processing | Type: ${documentType} | Lang: ${language}`);
+        if (urls) console.log(`[Process-AI] URLs: ${urls.join(", ")}`);
+        else console.log(`[Process-AI] URL: ${url}`);
 
         const ocrServiceUrl = process.env.OCR_SERVICE_URL;
 
@@ -92,10 +94,23 @@ export async function POST(req: Request) {
         console.log(`[Process-AI] Forwarding to External OCR: ${ocrServiceUrl}`);
 
         // Call External OCR Service
-        // User requested payload format: { documentType: 2, url: "..." }
-        const payload: any = { url };
+        // User requested payload format: { documentType: 3, urls: ["...", "..."], language: "ur" }
+        const payload: any = {};
+
+        if (urls && urls.length > 0) {
+            payload.urls = urls;
+        } else {
+            payload.url = url;
+        }
+
         if (documentType) {
             payload.documentType = documentType;
+        }
+        if (language) {
+            payload.language = language;
+        }
+        if (language) {
+            payload.language = language;
         }
 
         const response = await fetch(ocrServiceUrl, {
@@ -140,6 +155,12 @@ export async function POST(req: Request) {
                     // If balance is provided in API use it, otherwise mapped to availableBalance
                     availableBalance: t.balance || t.availableBalance || 0
                 }))
+            };
+        } else if (Number(documentType) === 3) {
+            // Map Identity Card
+            mappedData = {
+                type: "IDENTITY_CARD",
+                structured_data: data // Pass through the raw structured data (cardFront, cardBack)
             };
         } else {
             // Map Invoice
