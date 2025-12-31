@@ -52,37 +52,37 @@ export function DocumentViewer({ url, type, secondUrl }: DocumentViewerProps) {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-8 flex items-center justify-center bg-slate-100/50">
+            <div className="flex-1 overflow-auto p-4 lg:p-8 flex bg-slate-100/50">
                 <div
                     style={{
                         transform: `scale(${scale}) rotate(${rotation}deg)`,
                         transition: "transform 0.2s ease-in-out",
                     }}
-                    className="shadow-xl bg-white flex flex-col gap-4 p-4"
+                    className="shadow-xl bg-white flex flex-col gap-4 p-2 lg:p-4 m-auto origin-center"
                 >
                     {type === "PDF" ? (
                         <iframe
                             src={url}
-                            className="w-[600px] h-[800px] bg-white"
+                            className="w-full lg:w-[600px] h-[500px] lg:h-[800px] bg-white"
                             title="PDF Viewer"
                         />
                     ) : (
                         <>
                             <div className="relative group">
-                                <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">Front Side</span>
+                                <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity pointer-events-none">Front Side</span>
                                 <img
                                     src={url}
                                     alt="Document Front"
-                                    className="max-w-[600px] max-h-[600px] object-contain bg-white"
+                                    className="max-w-full lg:max-w-[600px] max-h-[60vh] lg:max-h-[600px] object-contain bg-white"
                                 />
                             </div>
                             {secondUrl && (
                                 <div className="relative group border-t border-slate-200 pt-4">
-                                    <span className="absolute top-6 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">Back Side</span>
+                                    <span className="absolute top-6 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity pointer-events-none">Back Side</span>
                                     <img
                                         src={secondUrl}
                                         alt="Document Back"
-                                        className="max-w-[600px] max-h-[600px] object-contain bg-white"
+                                        className="max-w-full lg:max-w-[600px] max-h-[60vh] lg:max-h-[600px] object-contain bg-white"
                                     />
                                 </div>
                             )}
