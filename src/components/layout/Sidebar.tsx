@@ -43,6 +43,7 @@ function getNavVisibility(permissions: UserPermissions) {
         showDashboard: hasPermission(permissions, "dashboard.view"),
         showInvoices: hasPermission(permissions, "invoices.view"),
         showBankStatements: hasPermission(permissions, "bank.view"),
+        showIdCards: hasPermission(permissions, "id_cards.view"),
         showOtherDocuments: hasPermission(permissions, "other.view"),
         showHistory: hasPermission(permissions, "history.view"),
         showRecycleBin: hasPermission(permissions, "recycle.view"),
@@ -100,7 +101,7 @@ const mainNavItems = [
         title: "ID Cards (CNIC)",
         href: "/id-cards",
         icon: User, // Using User icon for ID Cards
-        permissionKey: "showBankStatements" // reusing existing permission key or adding new one? 'showInvoices' or 'showOtherDocuments' might be safer defaults if 'showIdCards' doesn't exist. Let's use 'showBankStatements' for now as it's a specific module.
+        permissionKey: "showIdCards"
     },
     {
         title: "Other Documents",
@@ -159,6 +160,7 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
         showDashboard: true,
         showInvoices: true,
         showBankStatements: true,
+        showIdCards: true,
         showOtherDocuments: true,
         showHistory: true,
         showRecycleBin: true,

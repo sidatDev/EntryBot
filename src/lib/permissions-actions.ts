@@ -86,5 +86,34 @@ export async function getUserPermissionsAction(userId: string): Promise<UserPerm
             role: "SUBMITTER",
             permissions: CLIENT_PERMISSIONS
         };
+        return {
+            role: "SUBMITTER",
+            permissions: CLIENT_PERMISSIONS
+        };
     }
+}
+
+/**
+ * Determine the best redirect path for a user after login
+ */
+export async function getInitialRedirectPath(userId: string): Promise<string> {
+    const userPerms = await getUserPermissionsAction(userId);
+    const { permissions, role } = userPerms;
+    const ADMIN_PERMISSIONS = "*";
+
+    // 1. Admin always goes to dashboard (or hub if enabled, but dashboard is safe)
+    if (role === "ADMIN" || permissions.includes(ADMIN_PERMISSIONS)) {
+        return "/dashboard";
+    }
+
+    // 2. Check permissions in priority order
+    if (permissions.includes("dashboard.view")) return "/dashboard";
+    if (permissions.includes("invoices.view")) return "/documents?status=UPLOADED"; // or just /documents
+    if (permissions.includes("bank.view")) return "/bank-statements";
+    if (permissions.includes("id_cards.view")) return "/id-cards";
+    if (permissions.includes("other.view")) return "/other-documents";
+    if (permissions.includes("history.view")) return "/history";
+
+    // 3. Fallback
+    return "/dashboard";
 }

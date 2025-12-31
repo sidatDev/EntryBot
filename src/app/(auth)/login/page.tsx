@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { Loader2, Lock, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { getSession } from "next-auth/react";
+import { getInitialRedirectPath } from "@/lib/permissions-actions";
+
 export default function LoginPage() {
     const router = useRouter();
     const [email, setEmail] = useState("");
@@ -28,7 +31,14 @@ export default function LoginPage() {
             if (res?.error) {
                 setError("Invalid credentials");
             } else {
-                router.push("/dashboard");
+                // Fetch session to get User ID and decide redirect path
+                const session = await getSession();
+                if (session?.user?.id) {
+                    const path = await getInitialRedirectPath(session.user.id);
+                    router.push(path);
+                } else {
+                    router.push("/dashboard");
+                }
             }
         } catch (error) {
             setError("Something went wrong");

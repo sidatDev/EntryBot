@@ -22,6 +22,7 @@ const PERMISSION_GROUPS = [
     { name: "Dashboard", key: "dashboard", permissions: ["view"] },
     { name: "Invoices & Receipts", key: "invoices", permissions: ["view", "upload", "approve", "export"] },
     { name: "Bank & Card Statements", key: "bank", permissions: ["view", "upload", "bulk_edit", "export"] },
+    { name: "ID Cards (CNIC)", key: "id_cards", permissions: ["view", "upload", "export"] },
     { name: "Other Documents", key: "other", permissions: ["view", "upload", "tagging", "edit_properties"] },
     { name: "Upload History", key: "history", permissions: ["view"] },
     { name: "Recycle Bin", key: "recycle", permissions: ["view", "restore", "permanent_delete"] },
