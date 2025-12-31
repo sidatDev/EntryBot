@@ -35,7 +35,8 @@ function getNavVisibility(permissions: UserPermissions) {
             showIntegration: true,
             showUsers: true,
             showRoles: true,
-            showOrganizations: true
+            showOrganizations: true,
+            showIdCards: true
         };
     }
 
