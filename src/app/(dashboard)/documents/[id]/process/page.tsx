@@ -8,6 +8,9 @@ export default async function ProcessPage({ params }: { params: Promise<{ id: st
 
     const document = await prisma.document.findUnique({
         where: { id },
+        include: {
+            identityCard: true
+        }
     });
 
     if (!document) {

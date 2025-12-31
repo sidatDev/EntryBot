@@ -6,9 +6,10 @@ import { ZoomIn, ZoomOut, RotateCw } from "lucide-react";
 interface DocumentViewerProps {
     url: string;
     type: string;
+    secondUrl?: string | null;
 }
 
-export function DocumentViewer({ url, type }: DocumentViewerProps) {
+export function DocumentViewer({ url, type, secondUrl }: DocumentViewerProps) {
     const [scale, setScale] = useState(1);
     const [rotation, setRotation] = useState(0);
 
@@ -57,7 +58,7 @@ export function DocumentViewer({ url, type }: DocumentViewerProps) {
                         transform: `scale(${scale}) rotate(${rotation}deg)`,
                         transition: "transform 0.2s ease-in-out",
                     }}
-                    className="shadow-xl"
+                    className="shadow-xl bg-white flex flex-col gap-4 p-4"
                 >
                     {type === "PDF" ? (
                         <iframe
@@ -66,11 +67,26 @@ export function DocumentViewer({ url, type }: DocumentViewerProps) {
                             title="PDF Viewer"
                         />
                     ) : (
-                        <img
-                            src={url}
-                            alt="Document"
-                            className="max-w-[600px] max-h-[800px] object-contain bg-white"
-                        />
+                        <>
+                            <div className="relative group">
+                                <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">Front Side</span>
+                                <img
+                                    src={url}
+                                    alt="Document Front"
+                                    className="max-w-[600px] max-h-[600px] object-contain bg-white"
+                                />
+                            </div>
+                            {secondUrl && (
+                                <div className="relative group border-t border-slate-200 pt-4">
+                                    <span className="absolute top-6 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">Back Side</span>
+                                    <img
+                                        src={secondUrl}
+                                        alt="Document Back"
+                                        className="max-w-[600px] max-h-[600px] object-contain bg-white"
+                                    />
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>

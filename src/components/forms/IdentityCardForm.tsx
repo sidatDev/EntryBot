@@ -124,10 +124,16 @@ export function IdentityCardForm({ documentId, documentUrl }: { documentId: stri
             if (front.countryOfStay) setValue("countryOfStay", front.countryOfStay);
             if (front.identityNumber) setValue("identityNumber", front.identityNumber);
 
-            // Date Parsing helper (DD/MM/YYYY -> YYYY-MM-DD for input type="date")
+            // Date Parsing helper (DD/MM/YYYY or DD.MM.YYYY -> YYYY-MM-DD)
             const parseDate = (d: string) => {
                 if (!d) return "";
-                const [day, month, year] = d.split("/");
+                // Normalize separators (replace . and - with /)
+                const normalized = d.replace(/[.-]/g, "/");
+                const parts = normalized.split("/");
+
+                if (parts.length !== 3) return "";
+
+                const [day, month, year] = parts;
                 return `${year}-${month}-${day}`;
             };
 
