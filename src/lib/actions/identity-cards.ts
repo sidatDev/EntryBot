@@ -17,8 +17,8 @@ export async function saveIdentityCard(data: {
     dateOfExpiry?: string;
     urduFullName?: string;
     urduFatherName?: string;
-    addressMain?: string;
-    addressSecond?: string;
+    currentAddress?: string;
+    permanentAddress?: string;
     cardBackUrl?: string;
 }) {
     // 1. Create/Update IdentityCard record
@@ -36,8 +36,8 @@ export async function saveIdentityCard(data: {
             dateOfExpiry: data.dateOfExpiry ? new Date(data.dateOfExpiry) : undefined,
             urduFullName: data.urduFullName,
             urduFatherName: data.urduFatherName,
-            addressMain: data.addressMain,
-            addressSecond: data.addressSecond,
+            addressMain: data.currentAddress,      // Map current -> addressMain
+            addressSecond: data.permanentAddress,  // Map permanent -> addressSecond
             cardBackUrl: data.cardBackUrl,
         },
         update: {
@@ -51,8 +51,8 @@ export async function saveIdentityCard(data: {
             dateOfExpiry: data.dateOfExpiry ? new Date(data.dateOfExpiry) : undefined,
             urduFullName: data.urduFullName,
             urduFatherName: data.urduFatherName,
-            addressMain: data.addressMain,
-            addressSecond: data.addressSecond,
+            addressMain: data.currentAddress,      // Map current -> addressMain
+            addressSecond: data.permanentAddress,  // Map permanent -> addressSecond
             cardBackUrl: data.cardBackUrl,
         }
     });

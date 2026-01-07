@@ -26,8 +26,8 @@ const identityCardSchema = z.object({
     urduFullName: z.string().optional(),
     urduFatherName: z.string().optional(),
 
-    addressMain: z.string().optional(),
-    addressSecond: z.string().optional(),
+    currentAddress: z.string().optional(),
+    permanentAddress: z.string().optional(),
     cardBackUrl: z.string().optional(),
 });
 
@@ -52,8 +52,8 @@ export function IdentityCardForm({ documentId, documentUrl }: { documentId: stri
             dateOfExpiry: "",
             urduFullName: "",
             urduFatherName: "",
-            addressMain: "",
-            addressSecond: "",
+            currentAddress: "",
+            permanentAddress: "",
             cardBackUrl: "",
         },
     });
@@ -145,8 +145,8 @@ export function IdentityCardForm({ documentId, documentUrl }: { documentId: stri
             if (front.urduFatherName) setValue("urduFatherName", front.urduFatherName);
 
             // Back Data
-            if (back.addressMain) setValue("addressMain", back.addressMain);
-            if (back.addressSecond) setValue("addressSecond", back.addressSecond);
+            if (back.currentAddress) setValue("currentAddress", back.currentAddress);
+            if (back.permanentAddress) setValue("permanentAddress", back.permanentAddress);
 
         } catch (error) {
             console.error("AI Processing Error:", error);
@@ -290,12 +290,12 @@ export function IdentityCardForm({ documentId, documentUrl }: { documentId: stri
                         </h3>
                         <div className="space-y-6">
                             <div>
-                                <label className={labelClass}>Present Address</label>
-                                <textarea {...form.register("addressMain")} rows={2} className={inputClass + " resize-none"} />
+                                <label className={labelClass}>Current Address</label>
+                                <textarea {...form.register("currentAddress")} rows={2} className={inputClass + " resize-none"} />
                             </div>
                             <div>
                                 <label className={labelClass}>Permanent Address</label>
-                                <textarea {...form.register("addressSecond")} rows={2} className={inputClass + " resize-none"} />
+                                <textarea {...form.register("permanentAddress")} rows={2} className={inputClass + " resize-none"} />
                             </div>
                         </div>
                     </div>
