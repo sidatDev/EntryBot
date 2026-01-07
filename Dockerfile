@@ -22,15 +22,12 @@ COPY . .
 
 # Environment variable to enable standalone mode for Next.js
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV STANDALONE_MODE=true
 
 # Generate Prisma Client (explicitly, though postinstall might have done it)
 RUN npx prisma generate
 
 # Build the Next.js app
 RUN npm run build
-
-
 
 # ------------------------------
 # 2. Runner / Production Stage
@@ -41,31 +38,31 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOST=0.0.0.0
 
 # Install OpenSSL for Prisma compatibility
 RUN apk add --no-cache openssl
 
-# Copy the entire app build output from builder
-COPY --from=builder /app ./
+# Don't run as root
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-# Install ONLY production dependencies (cleaner/faster than copying everything)
-# Note: In standalone mode, we might not strictly need this if node_modules are bundled,
-# but it's safer for things like prisma client interaction scripts.
-RUN npm install --omit=dev --no-optional
+# Copy only the necessary files from the builder
+COPY --from=builder /app/public ./public
 
-# Create a startup script that starts the production server
-RUN echo '#!/bin/sh' > start_server.sh && \
-    echo 'echo "Starting Next.js production server..."' >> start_server.sh && \
-    echo 'echo "Server will listen on $HOST:$PORT"' >> start_server.sh && \
-    echo 'exec npm start' >> start_server.sh && \
-    chmod +x start_server.sh
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
 
-# Next.js serves static assets from here
-ENV PORT=3000
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
 EXPOSE 3000
 
-# Set HOST to 0.0.0.0 to ensure the server listens on all interfaces
-ENV HOST=0.0.0.0
-
-# Start production server using the startup script
-CMD ["./start_server.sh"]
+# Server.js is created by next build from the standalone output
+CMD ["node", "server.js"]
