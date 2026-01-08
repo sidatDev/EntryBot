@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2, Save, FileText, Sparkles, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { saveBankStatement, getDocumentMetadata } from "@/lib/actions";
 import { useRouter } from "next/navigation";
@@ -94,11 +95,33 @@ export function BankStatementForm({ documentId, documentUrl }: { documentId: str
                 }),
             });
 
+            let data;
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `Failed to process document (${response.status})`);
+
+                // CHECK FOR STRUCTURED ERROR
+                if (errorData.detail) {
+                    // Show the specific error message
+                    const errorMessage = errorData.detail.details || errorData.detail.error?.text || "Validation Error";
+
+                    toast.warning("Attention", {
+                        description: errorMessage,
+                        duration: 5000,
+                    });
+
+                    // Use partial/mapped data if available
+                    if (errorData.detail.mapped_data) {
+                        data = errorData.detail.mapped_data;
+                    } else {
+                        throw new Error("Validation Error: " + (errorData.error || `Failed to process document (${response.status})`));
+                    }
+                } else {
+                    throw new Error(errorData.error || `Failed to process document (${response.status})`);
+                }
+            } else {
+                data = await response.json();
             }
-            const data = await response.json();
 
             if (data.type === "STATEMENT") {
                 // Populate Account Info
@@ -126,8 +149,15 @@ export function BankStatementForm({ documentId, documentUrl }: { documentId: str
                     })));
                 }
             }
-        } catch (error) {
+        } catch (error: any) {
+            // Suppress console error for known validation warnings that have already been toasted
+            if (error.message?.includes("Validation Error") || error.message?.includes("Attention:")) {
+                console.log("Validation warning handled:", error.message);
+                return;
+            }
+
             console.error("AI Processing Error:", error);
+            toast.error("Auto-fill Failed", { description: error.message || "Failed to process document." });
         } finally {
             setProcessingAi(false);
         }
