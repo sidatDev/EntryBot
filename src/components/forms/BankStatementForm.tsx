@@ -3,11 +3,13 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Save, FileText, Sparkles, Plus, Trash2 } from "lucide-react";
+import { Loader2, Save, FileText, Sparkles, Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { saveBankStatement, getDocumentMetadata } from "@/lib/actions";
 import { useRouter } from "next/navigation";
+import Papa from "papaparse";
+import * as XLSX from "xlsx";
 
 // Schema for Bank Statement
 const bankStatementSchema = z.object({
@@ -185,6 +187,51 @@ export function BankStatementForm({ documentId, documentUrl }: { documentId: str
         setTransactions(prev => prev.filter(t => t.id !== id));
     };
 
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const processData = (data: any[]) => {
+            const newTransactions: BankTransaction[] = data.map((row: any) => ({
+                id: Math.random().toString(36).substr(2, 9),
+                bookingDate: row['Date'] || row['date'] || row['Booking Date'] || "",
+                description: row['Description'] || row['description'] || row['Details'] || "",
+                debit: Number(row['Debit'] || row['debit'] || row['Withdrawal'] || 0),
+                credit: Number(row['Credit'] || row['credit'] || row['Deposit'] || 0),
+                availableBalance: Number(row['Balance'] || row['balance'] || 0)
+            })).filter(t => t.description || t.debit || t.credit); // Filter empty rows
+
+            setTransactions(prev => [...prev, ...newTransactions]);
+            toast.success(`Imported ${newTransactions.length} transactions`);
+            // Reset input
+            event.target.value = '';
+        };
+
+        if (file.name.endsWith('.csv')) {
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    processData(results.data);
+                },
+                error: (error) => {
+                    toast.error("Failed to parse CSV", { description: error.message });
+                }
+            });
+        } else {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                processData(jsonData);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    };
+
     // Styles
     const inputClass = "w-full border-b border-slate-300 focus:border-indigo-600 outline-none px-0 py-2 bg-transparent text-slate-800 placeholder:text-slate-400 sm:text-sm transition-colors";
     const labelClass = "text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 block";
@@ -215,6 +262,15 @@ export function BankStatementForm({ documentId, documentUrl }: { documentId: str
             {/* Scrollable Area */}
             <div className="flex-1 overflow-y-auto">
                 <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-6xl mx-auto p-8 space-y-8">
+
+                    {/* Hidden File Input for Import */}
+                    <input
+                        type="file"
+                        id="transaction-import"
+                        accept=".csv,.xlsx,.xls"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                    />
 
                     {/* Account Details */}
                     <div className="grid grid-cols-12 gap-x-8 gap-y-6">
@@ -274,9 +330,19 @@ export function BankStatementForm({ documentId, documentUrl }: { documentId: str
                     <div className="mt-8 border-t border-slate-100 pt-8">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-bold text-slate-900">Transactions</h3>
-                            <button type="button" onClick={addTransaction} className="flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700">
-                                <Plus className="h-3 w-3" /> Add Transaction
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => document.getElementById('transaction-import')?.click()}
+                                    className="flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-indigo-600 transition-colors"
+                                >
+                                    <Upload className="h-3 w-3" /> Import CSV/Excel
+                                </button>
+                                <div className="h-4 w-px bg-slate-200" />
+                                <button type="button" onClick={addTransaction} className="flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700">
+                                    <Plus className="h-3 w-3" /> Add Transaction
+                                </button>
+                            </div>
                         </div>
 
                         <div className="overflow-x-auto">
