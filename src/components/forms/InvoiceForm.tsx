@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2, Save, FileText, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { LineItemsTable } from "./LineItemsTable";
 import { saveInvoice, getDocumentMetadata, getLatestInvoiceByDocument } from "@/lib/actions";
@@ -218,6 +219,8 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ url: documentUrl, documentType: 1 }),
             });
+
+            let data;
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));

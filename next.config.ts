@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb', // Increase limit for file uploads
     },
   },
+  output: "standalone",
 };
 
 export default nextConfig;
