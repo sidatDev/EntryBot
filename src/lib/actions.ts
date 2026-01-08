@@ -310,42 +310,76 @@ export async function saveInvoice(data: {
         total: number;
     }>;
 }) {
-    const invoice = await prisma.invoice.create({
-        data: {
-            documentId: data.documentId,
-            type: data.type,
-            invoiceNumber: data.invoiceNumber,
-            date: new Date(data.date),
-            dueDate: data.dueDate ? new Date(data.dueDate) : null,
-            supplierName: data.supplierName,
-            customerName: data.customerName,
-            subTotal: data.subTotal,
-            taxTotal: data.taxTotal,
-            totalAmount: data.totalAmount,
-            paymentMethod: data.paymentMethod,
-
-            // New & Updated Mappings
-            exchangeRate: data.exchangeRate,
-            vatRate: data.vatRate,
-            currency: data.currency || "USD",
-
-            invoiceCurrency: data.invoiceCurrency || "USD",
-            baseSubTotal: data.baseSubTotal,
-            baseTaxTotal: data.baseTaxTotal,
-            baseVatRate: data.baseVatRate,
-            baseCurrencyAmount: data.baseCurrencyAmount, // This is Gross in Base
-
-            notes: data.notes,
-            status: "SAVED",
-            items: {
-                create: data.lineItems,
-            },
-        },
+    // Check if invoice already exists for this document (One-to-One logic for "Entry" flow)
+    const existingInvoice = await prisma.invoice.findFirst({
+        where: { documentId: data.documentId },
+        orderBy: { createdAt: "desc" }
     });
 
-    // BILLING: Deduct Credit
-    const doc = await prisma.document.findUnique({ where: { id: data.documentId }, select: { organizationId: true } });
-    if (doc?.organizationId) {
+    let invoice;
+
+    const commonData = {
+        type: data.type,
+        invoiceNumber: data.invoiceNumber,
+        date: new Date(data.date),
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        supplierName: data.supplierName,
+        customerName: data.customerName,
+        subTotal: data.subTotal,
+        taxTotal: data.taxTotal,
+        totalAmount: data.totalAmount,
+        paymentMethod: data.paymentMethod,
+
+        // New & Updated Mappings
+        exchangeRate: data.exchangeRate,
+        vatRate: data.vatRate,
+        currency: data.currency || "USD",
+
+        invoiceCurrency: data.invoiceCurrency || "USD",
+        baseSubTotal: data.baseSubTotal,
+        baseTaxTotal: data.baseTaxTotal,
+        baseVatRate: data.baseVatRate,
+        baseCurrencyAmount: data.baseCurrencyAmount,
+
+        notes: data.notes,
+        status: "SAVED",
+    };
+
+    if (existingInvoice) {
+        // UPDATE EXISTING
+        invoice = await prisma.invoice.update({
+            where: { id: existingInvoice.id },
+            data: {
+                ...commonData,
+                items: {
+                    deleteMany: {}, // Remove all existing items
+                    create: data.lineItems, // Re-create new state
+                },
+            },
+        });
+    } else {
+        // CREATE NEW
+        invoice = await prisma.invoice.create({
+            data: {
+                ...commonData,
+                documentId: data.documentId,
+                items: {
+                    create: data.lineItems,
+                },
+            },
+        });
+    }
+
+    // BILLING: Deduct Credit (Only if creating new? Or updates too? Assuming per Document processing)
+    // Generally, "Processing" consumes credit. "Saving" is user editing.
+    // If we only charge exactly ONCE per document, check if we already deducted.
+
+    // We only deduct if doc was NOT already processed/completed.
+    const doc = await prisma.document.findUnique({ where: { id: data.documentId }, select: { organizationId: true, status: true } });
+
+    // Only deduct credit if status is UPLOADED or PENDING (first time save)
+    // If status is "SAVED", "COMPLETED", "QA_REVIEW" etc we assume credit already used.
+    if (doc?.organizationId && (doc.status === "UPLOADED" || doc.status === "PENDING")) {
         try {
             await deductCredits(doc.organizationId, 1);
         } catch (e) {
@@ -353,9 +387,17 @@ export async function saveInvoice(data: {
         }
     }
 
-    // QA SAMPLING: 10% chance
-    const isQA = shouldFlagForQA(10);
-    const nextStatus = isQA ? "QA_REVIEW" : "COMPLETED";
+    // QA SAMPLING: 10% chance (Only on first completion?)
+    // If we are updating, we keep previous status unless it was just uploaded
+    let nextStatus = doc?.status;
+    if (doc?.status === "UPLOADED" || doc?.status === "PENDING" || doc?.status === "PROCESSING") {
+        const isQA = shouldFlagForQA(10);
+        nextStatus = isQA ? "QA_REVIEW" : "COMPLETED";
+    } else {
+        // If already Completed/Saved, we stick to COMPLETED or SAVED unless review forces otherwise
+        // Use COMPLETED as default "Done" state for updates
+        nextStatus = "COMPLETED";
+    }
 
     // Update document status
     await prisma.document.update({
@@ -369,6 +411,21 @@ export async function saveInvoice(data: {
     revalidatePath("/dashboard");
     revalidatePath(`/documents/${data.documentId}/process`);
 
+    return invoice;
+}
+
+export async function getLatestInvoiceByDocument(documentId: string) {
+    const invoice = await prisma.invoice.findFirst({
+        where: { documentId: documentId },
+        orderBy: { createdAt: "desc" },
+        include: {
+            items: true
+        }
+    });
+
+    if (!invoice) return null;
+
+    // Transform relation 'items' to 'lineItems' format if needed or pass as is
     return invoice;
 }
 
