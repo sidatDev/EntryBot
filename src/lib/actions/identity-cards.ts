@@ -60,10 +60,11 @@ export async function saveIdentityCard(data: {
     // 2. Billing & Status Updates (Similar to Invoice Logic)
     const doc = await prisma.document.findUnique({
         where: { id: data.documentId },
-        select: { organizationId: true }
+        select: { organizationId: true, status: true }
     });
 
-    if (doc?.organizationId) {
+    // Only deduct credit if status is UPLOADED or PENDING (first time save)
+    if (doc?.organizationId && (doc.status === "UPLOADED" || doc.status === "PENDING")) {
         try {
             await deductCredits(doc.organizationId, 1);
         } catch (e) {

@@ -27,6 +27,9 @@ const CLIENT_PERMISSIONS: Permission[] = [
     "recycle.view",
 ];
 
+// Re-use Client permissions for Employees for now
+const EMPLOYEE_PERMISSIONS: Permission[] = [...CLIENT_PERMISSIONS];
+
 /**
  * Get user permissions (SERVER ACTION)
  */
@@ -76,6 +79,13 @@ export async function getUserPermissionsAction(userId: string): Promise<UserPerm
         }
 
         // Default CLIENT permissions
+        if (user.role === "EMPLOYEE") {
+            return {
+                role: "EMPLOYEE",
+                permissions: EMPLOYEE_PERMISSIONS
+            };
+        }
+
         return {
             role: user.role,
             permissions: CLIENT_PERMISSIONS

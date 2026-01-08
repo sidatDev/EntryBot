@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { notFound } from "next/navigation";
-import { getInvoicesByDocument } from "@/lib/actions";
+import { notFound, redirect } from "next/navigation";
+import { getInvoicesByDocument, getDocumentMetadata } from "@/lib/actions"; // Import from actions
 import { ProcessPageClient } from "./client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -8,12 +8,7 @@ import { authOptions } from "@/lib/auth";
 export default async function ProcessPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
 
-    const document = await prisma.document.findUnique({
-        where: { id },
-        include: {
-            identityCard: true
-        }
-    });
+    const document = await getDocumentMetadata(id); // Use secured action
 
     if (!document) {
         notFound();

@@ -1,5 +1,7 @@
 import { getDocuments } from "@/lib/actions";
 import { DocumentList } from "@/components/documents/DocumentList";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export default async function DocumentsPage({
     searchParams,
@@ -10,6 +12,7 @@ export default async function DocumentsPage({
 
     // Fetch documents based on category
     const documents = await getDocuments(category, undefined, assignedTo);
+    const session = await getServerSession(authOptions);
 
     // Determine page title based on category
     const pageTitle = category === "SALES_INVOICE"
@@ -31,7 +34,11 @@ export default async function DocumentsPage({
                 <p className="text-slate-500">{pageDescription}</p>
             </div>
 
-            <DocumentList documents={documents} category={category} />
+            <DocumentList
+                documents={documents}
+                category={category}
+                currentUser={session?.user}
+            />
         </div>
     );
 }

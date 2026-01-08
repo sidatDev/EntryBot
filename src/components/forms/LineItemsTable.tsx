@@ -13,10 +13,12 @@ interface LineItem {
 interface LineItemsTableProps {
     items: LineItem[];
     onChange: (items: LineItem[]) => void;
+    readOnly?: boolean;
 }
 
-export function LineItemsTable({ items, onChange }: LineItemsTableProps) {
+export function LineItemsTable({ items, onChange, readOnly = false }: LineItemsTableProps) {
     const addRow = () => {
+        if (readOnly) return;
         const newItem: LineItem = {
             id: `temp-${Date.now()}`,
             description: "",
@@ -28,10 +30,12 @@ export function LineItemsTable({ items, onChange }: LineItemsTableProps) {
     };
 
     const removeRow = (id: string) => {
+        if (readOnly) return;
         onChange(items.filter((item) => item.id !== id));
     };
 
     const updateRow = (id: string, field: keyof LineItem, value: string | number) => {
+        if (readOnly) return;
         const updatedItems = items.map((item) => {
             if (item.id === id) {
                 const updated = { ...item, [field]: value };
@@ -54,14 +58,16 @@ export function LineItemsTable({ items, onChange }: LineItemsTableProps) {
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-slate-700">Line Items</h3>
-                <button
-                    type="button"
-                    onClick={addRow}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
-                >
-                    <Plus className="h-4 w-4" />
-                    Add Item
-                </button>
+                {!readOnly && (
+                    <button
+                        type="button"
+                        onClick={addRow}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Add Item
+                    </button>
+                )}
             </div>
 
             <div className="border border-slate-200 rounded-lg overflow-hidden">
@@ -73,14 +79,14 @@ export function LineItemsTable({ items, onChange }: LineItemsTableProps) {
                                 <th className="px-4 py-3 text-left font-semibold text-slate-700 w-24">Qty</th>
                                 <th className="px-4 py-3 text-left font-semibold text-slate-700 w-32">Unit Price</th>
                                 <th className="px-4 py-3 text-left font-semibold text-slate-700 w-32">Total</th>
-                                <th className="px-4 py-3 w-12"></th>
+                                {!readOnly && <th className="px-4 py-3 w-12"></th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {items.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                                        No items added. Click "Add Item" to get started.
+                                    <td colSpan={readOnly ? 4 : 5} className="px-4 py-8 text-center text-slate-400">
+                                        No items added.
                                     </td>
                                 </tr>
                             ) : (
@@ -91,8 +97,9 @@ export function LineItemsTable({ items, onChange }: LineItemsTableProps) {
                                                 type="text"
                                                 value={item.description}
                                                 onChange={(e) => updateRow(item.id, "description", e.target.value)}
-                                                className="w-full px-2 py-1.5 rounded border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                className="w-full px-2 py-1.5 rounded border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none disabled:bg-transparent disabled:border-transparent"
                                                 placeholder="Item description"
+                                                disabled={readOnly}
                                             />
                                         </td>
                                         <td className="px-4 py-3">
@@ -100,9 +107,10 @@ export function LineItemsTable({ items, onChange }: LineItemsTableProps) {
                                                 type="number"
                                                 value={item.quantity}
                                                 onChange={(e) => updateRow(item.id, "quantity", Number(e.target.value))}
-                                                className="w-full px-2 py-1.5 rounded border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                className="w-full px-2 py-1.5 rounded border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none disabled:bg-transparent disabled:border-transparent"
                                                 min="0"
                                                 step="1"
+                                                disabled={readOnly}
                                             />
                                         </td>
                                         <td className="px-4 py-3">
@@ -110,9 +118,10 @@ export function LineItemsTable({ items, onChange }: LineItemsTableProps) {
                                                 type="number"
                                                 value={item.unitPrice}
                                                 onChange={(e) => updateRow(item.id, "unitPrice", Number(e.target.value))}
-                                                className="w-full px-2 py-1.5 rounded border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                className="w-full px-2 py-1.5 rounded border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none disabled:bg-transparent disabled:border-transparent"
                                                 min="0"
                                                 step="0.01"
+                                                disabled={readOnly}
                                             />
                                         </td>
                                         <td className="px-4 py-3">
@@ -120,16 +129,18 @@ export function LineItemsTable({ items, onChange }: LineItemsTableProps) {
                                                 ${item.total.toFixed(2)}
                                             </div>
                                         </td>
-                                        <td className="px-4 py-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => removeRow(item.id)}
-                                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                                                title="Delete item"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </td>
+                                        {!readOnly && (
+                                            <td className="px-4 py-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeRow(item.id)}
+                                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                                    title="Delete item"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))
                             )}

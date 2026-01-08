@@ -1,92 +1,127 @@
-"use server"
+"use server";
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { hash } from "bcryptjs";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
-export type CreateOrgData = {
-    name: string;
-    type: "MASTER_CLIENT" | "CHILD_CLIENT";
-    parentId?: string;
-    adminName: string;
-    adminEmail: string;
-    adminPassword?: string;
-};
+/* -------------------------------------------------------------------------- */
+/*                            ORGANIZATION ACTIONS                            */
+/* -------------------------------------------------------------------------- */
 
-export async function createOrganization(data: CreateOrgData) {
+export async function createOrganization(name: string, type: "MASTER_CLIENT" | "SUB_CLIENT" = "SUB_CLIENT") {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+        return { success: false, error: "Unauthorized" };
+    }
+
     try {
-        // 1. Validate Hierarchy
-        if (data.type === "CHILD_CLIENT" && !data.parentId) {
-            return { error: "Child Client must have a Master Client (parentId)" };
-        }
-
-        // 2. Create Organization
-        const org = await prisma.organization.create({
+        const newOrg = await prisma.organization.create({
             data: {
-                name: data.name,
-                type: data.type,
-                parentId: data.parentId,
+                name,
+                type,
+                ownerId: session.user.id, // Current user is the owner
                 status: "ACTIVE",
-                credits: 50, // Default trial credits
+                users: {
+                    connect: { id: session.user.id } // Automatically add owner as member
+                }
             },
         });
 
-        // 3. Create Admin User for this Org
-        const hashedPassword = await hash(data.adminPassword || "welcome123", 10);
+        // Also explicitly update the user's current organizationId context to this one
+        await prisma.user.update({
+            where: { id: session.user.id },
+            data: { organizationId: newOrg.id }
+        });
 
-        // Determine Role Name based on Org Type
-        const roleName = data.type === "MASTER_CLIENT" ? "MASTER_ADMIN" : "MANAGER"; // Default for child?
+        revalidatePath("/dashboard/organizations");
+        return { success: true, organization: newOrg };
+    } catch (error) {
+        console.error("CREATE ORG ERROR:", error);
+        return { success: false, error: "Failed to create organization" };
+    }
+}
 
-        const role = await prisma.role.findUnique({ where: { name: roleName } });
+export async function addChildClient(organizationId: string, name: string, email: string, passwordHash: string) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+        return { success: false, error: "Unauthorized" };
+    }
 
-        const user = await prisma.user.create({
+    // Verify ownership: Does the current user own this organization?
+    const org = await prisma.organization.findUnique({
+        where: { id: organizationId },
+    });
+
+    if (!org || org.ownerId !== session.user.id) {
+        // Allow Admins to bypass
+        if (session.user.role !== "ADMIN") {
+            return { success: false, error: "You do not have permission to add users to this organization" };
+        }
+    }
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+        where: { email },
+    });
+    if (existingUser) {
+        return { success: false, error: "User with this email already exists" };
+    }
+
+    try {
+        const hashedPassword = await hash(passwordHash, 10);
+
+        const newUser = await prisma.user.create({
             data: {
-                name: data.adminName,
-                email: data.adminEmail,
+                name,
+                email,
                 passwordHash: hashedPassword,
-                organizationId: org.id,
-                customRoleId: role?.id,
-                role: "ADMIN", // Fallback
+                role: "EMPLOYEE", // Updated from ENTRY_OPERATOR per user request
+                organizationId: organizationId,
+                status: "ACTIVE",
             },
         });
 
-        revalidatePath("/super-admin/organizations");
-        return { success: true, org, user };
-
-    } catch (error: any) {
-        console.error("Error creating organization:", error);
-        return { error: error.message };
+        return { success: true, user: newUser };
+    } catch (error) {
+        console.error("ADD CHILD CLIENT ERROR:", error);
+        return { success: false, error: "Failed to add child client" };
     }
 }
 
-export async function getOrganizations(type?: string) {
-    try {
-        const where = type ? { type } : {};
-        const orgs = await prisma.organization.findMany({
-            where,
-            include: {
-                parent: { select: { name: true } },
-                _count: { select: { children: true, users: true } }
-            },
-            orderBy: { createdAt: "desc" }
-        });
-        return { success: true, data: orgs };
-    } catch (error: any) {
-        return { error: error.message };
-    }
+export async function getMyOrganizations() {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return [];
+
+    const orgs = await prisma.organization.findMany({
+        where: {
+            ownerId: session.user.id,
+        },
+        include: {
+            users: true,
+            _count: {
+                select: { documents: true }
+            }
+        }
+    });
+
+    return orgs;
 }
 
-export async function getChildOrganizations(parentId: string) {
-    try {
-        const orgs = await prisma.organization.findMany({
-            where: { parentId },
-            include: {
-                _count: { select: { users: true, documents: true } }
-            },
-            orderBy: { createdAt: "desc" }
-        });
-        return { success: true, data: orgs };
-    } catch (error: any) {
-        return { error: error.message };
+export async function getAllOrganizations() {
+    const session = await getServerSession(authOptions);
+    // Allow Admins and potentially others (controlled by internal logic or UI) to see all orgs
+    // For now, let's keep it simple. In a real app, strict RBAC here.
+    if (!session) return { data: [] };
+
+    // Ideally restricted to ADMIN
+    if (session.user.role !== "ADMIN" && session.user.role !== "MANAGER") {
+        return { data: [] };
     }
+
+    const orgs = await prisma.organization.findMany({
+        orderBy: { name: 'asc' }
+    });
+    return { data: orgs };
 }

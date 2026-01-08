@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Loader2, Lock, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 import { getSession } from "next-auth/react";
 import { getInitialRedirectPath } from "@/lib/permissions-actions";
@@ -106,8 +107,14 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    <div className="mt-6 text-center text-xs text-slate-400">
-                        <p>Protected by secure authentication</p>
+                    <div className="mt-6 text-center text-sm text-slate-500 space-y-2">
+                        <p>
+                            Don't have an account?{" "}
+                            <Link href="/signup" className="text-indigo-600 hover:text-indigo-700 font-medium">
+                                Sign up
+                            </Link>
+                        </p>
+                        <p className="text-xs text-slate-400">Protected by secure authentication</p>
                     </div>
                 </div>
             </div>

@@ -1,4 +1,5 @@
-import { getOrganizations } from "@/lib/actions/organization";
+// ... imports
+import { getMyOrganizations } from "@/lib/actions/organization";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -7,34 +8,68 @@ import { Button } from "@/components/ui/button";
 import { Building, FileText, Upload, Play, Clock, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-
-async function getStats(orgId?: string, userId?: string) {
-    const where: any = {};
-    if (orgId) where.organizationId = orgId;
-    if (userId) where.assignedToId = userId;
-
-    return {
-        pending: await prisma.document.count({ where: { ...where, status: "UPLOADED" } }),
-        processing: await prisma.document.count({ where: { ...where, status: "PROCESSING" } }),
-        completed: await prisma.document.count({ where: { ...where, status: "COMPLETED" } }),
-    };
-}
+import { CreateOrgModal } from "@/components/organizations/CreateOrgModal";
 
 export default async function HubPage() {
     const session = await getServerSession(authOptions);
     if (!session) redirect("/login");
 
-    const { data: organizations } = await getOrganizations();
-    // In a real scenario, we'd probably persist the "selected" organization in a cookie or URL param
-    // For V1, we list them or show a "Select Client to Begin" view.
+    const organizations = await getMyOrganizations();
 
-    // Let's make a grid of clients for quick access + specific "Work Queue" view.
+    // Fetch aggregated stats for all owned organizations
+    const orgIds = organizations.map(o => o.id);
+
+    const docStats = await prisma.document.groupBy({
+        by: ['organizationId', 'status'],
+        where: {
+            organizationId: { in: orgIds },
+            status: { not: 'DELETED' }
+        },
+        _count: {
+            id: true
+        }
+    });
+
+    // Process stats
+    let totalPending = 0;
+    let totalProcessing = 0;
+    let totalCompleted = 0;
+    const orgStatsMap: Record<string, { pending: number }> = {};
+
+    docStats.forEach(stat => {
+        const count = stat._count.id;
+
+        // Initialize map if needed
+        if (!orgStatsMap[stat.organizationId || 'unassigned']) {
+            orgStatsMap[stat.organizationId || 'unassigned'] = { pending: 0 };
+        }
+
+        // Aggregate Global Stats
+        if (stat.status === 'UPLOADED' || stat.status === 'PENDING') {
+            totalPending += count;
+            // Org level pending
+            if (stat.organizationId) {
+                orgStatsMap[stat.organizationId].pending += count;
+            }
+        } else if (stat.status === 'PROCESSING') {
+            totalProcessing += count;
+        } else if (stat.status === 'COMPLETED') {
+            totalCompleted += count;
+        }
+    });
+
+    // Calculate Efficiency (Mock logic for now based on completion)
+    const totalDocs = totalPending + totalProcessing + totalCompleted;
+    const efficiencyRate = totalDocs > 0 ? Math.round((totalCompleted / totalDocs) * 100) : 100;
 
     return (
         <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">The Hub</h1>
-                <p className="text-gray-500 mt-2">Central Data Entry Command Center</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">The Hub</h1>
+                    <p className="text-gray-500 mt-2">Central Data Entry Command Center</p>
+                </div>
+                <CreateOrgModal />
             </div>
 
             {/* Quick Actions */}
@@ -61,11 +96,11 @@ export default async function HubPage() {
                     <CardContent>
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-gray-500 text-sm">Pending</span>
-                            <span className="font-bold text-orange-600">12</span>
+                            <span className="font-bold text-orange-600">{totalPending}</span>
                         </div>
                         <div className="flex items-center justify-between mb-4">
-                            <span className="text-gray-500 text-sm">Drafts</span>
-                            <span className="font-bold text-blue-600">5</span>
+                            <span className="text-gray-500 text-sm">Processing</span>
+                            <span className="font-bold text-blue-600">{totalProcessing}</span>
                         </div>
                         <Button className="w-full" asChild>
                             <Link href="/documents?status=UPLOADED">
@@ -81,17 +116,17 @@ export default async function HubPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-center py-2">
-                            <div className="text-3xl font-bold text-gray-900">98%</div>
-                            <p className="text-xs text-gray-500 uppercase tracking-wide mt-1">Accuracy Rate</p>
+                            <div className="text-3xl font-bold text-gray-900">{efficiencyRate}%</div>
+                            <p className="text-xs text-gray-500 uppercase tracking-wide mt-1">Completion Rate</p>
                         </div>
                         <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t">
                             <div className="text-center">
-                                <div className="text-lg font-semibold">4m</div>
+                                <div className="text-lg font-semibold">-</div>
                                 <div className="text-[10px] text-gray-400">Avg Time</div>
                             </div>
                             <div className="text-center">
-                                <div className="text-lg font-semibold">142</div>
-                                <div className="text-[10px] text-gray-400">Docs Today</div>
+                                <div className="text-lg font-semibold">{totalDocs}</div>
+                                <div className="text-[10px] text-gray-400">Total</div>
                             </div>
                         </div>
                     </CardContent>
@@ -112,11 +147,6 @@ export default async function HubPage() {
                                 <option>All Statuses</option>
                                 <option>Active</option>
                                 <option>Trial</option>
-                            </select>
-                            <select className="text-sm border-slate-200 rounded-md px-2 py-1 bg-white">
-                                <option>All Teams</option>
-                                <option>Team A</option>
-                                <option>Team B</option>
                             </select>
                         </div>
                         <div className="text-sm text-slate-500">
@@ -146,8 +176,8 @@ export default async function HubPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${org.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
-                                                org.status === 'TRIAL' ? 'bg-blue-100 text-blue-700' :
-                                                    'bg-yellow-100 text-yellow-700'
+                                            org.status === 'TRIAL' ? 'bg-blue-100 text-blue-700' :
+                                                'bg-yellow-100 text-yellow-700'
                                             }`}>
                                             {org.status}
                                         </span>
@@ -159,12 +189,16 @@ export default async function HubPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-slate-500">
-                                        - {/* Team column placeholder until Team model exists */}
+                                        {org.users?.length || 0} Members
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <span className="inline-flex items-center px-2 py-1 rounded bg-orange-50 text-orange-700 text-xs font-medium">
-                                            3 Pending
-                                        </span>
+                                        {(orgStatsMap[org.id]?.pending || 0) > 0 ? (
+                                            <span className="inline-flex items-center px-2 py-1 rounded bg-orange-50 text-orange-700 text-xs font-medium">
+                                                {orgStatsMap[org.id].pending} Pending
+                                            </span>
+                                        ) : (
+                                            <span className="text-slate-400 text-xs">Empty</span>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <Button asChild variant="outline" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">

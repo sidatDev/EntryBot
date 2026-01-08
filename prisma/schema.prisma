@@ -77,6 +77,9 @@ model User {
   
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  // Organization Ownership (Master Client)
+  ownedOrganizations Organization[] @relation("OrganizationOwner")
 }
 
 model Organization {
@@ -85,6 +88,10 @@ model Organization {
   type          String   @default("CLIENT") // MASTER_CLIENT, SUB_CLIENT, INTERNAL
   status        String   @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
   credits       Int      @default(0)
+
+  // Ownership
+  ownerId       String?
+  owner         User?    @relation("OrganizationOwner", fields: [ownerId], references: [id])
 
   parentId      String?
   parent        Organization? @relation("OrganizationHierarchy", fields: [parentId], references: [id])

@@ -484,6 +484,7 @@ export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { doc
                                         step="0.01"
                                         {...form.register("taxAmount", { valueAsNumber: true })}
                                         className={amountInputClass + " w-24"}
+                                        disabled={readOnly}
                                     />
                                 </div>
                             </div>
@@ -494,6 +495,7 @@ export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { doc
                                         type="number"
                                         {...form.register("baseVatRate", { valueAsNumber: true })}
                                         className="w-12 text-right border-b border-slate-300 outline-none text-sm py-1 text-slate-400"
+                                        disabled={readOnly}
                                     />
                                 </div>
                                 <div>
@@ -503,6 +505,7 @@ export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { doc
                                         step="0.01"
                                         {...form.register("baseTaxAmount", { valueAsNumber: true })}
                                         className={amountInputClass + " w-24 text-slate-500"}
+                                        disabled={readOnly}
                                     />
                                 </div>
                             </div>
@@ -515,6 +518,7 @@ export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { doc
                                     step="0.01"
                                     {...form.register("totalAmount", { valueAsNumber: true })}
                                     className="w-full text-right bg-transparent outline-none font-bold text-indigo-600 text-xl border-b-2 border-transparent focus:border-indigo-600"
+                                    disabled={readOnly}
                                 />
                             </div>
                             <div className="pt-2">
@@ -524,6 +528,7 @@ export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { doc
                                     step="0.01"
                                     {...form.register("baseTotalAmount", { valueAsNumber: true })}
                                     className="w-full text-right bg-transparent outline-none font-bold text-slate-600 text-xl border-b-2 border-transparent focus:border-slate-300"
+                                    disabled={readOnly}
                                 />
                             </div>
 
@@ -534,7 +539,7 @@ export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { doc
                     {/* Line Items Table (Restored) */}
                     <div className="mt-8 border-t border-slate-100 pt-8">
                         <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wider">Line Items</h3>
-                        <LineItemsTable items={lineItems} onChange={setLineItems} />
+                        <LineItemsTable items={lineItems} onChange={setLineItems} readOnly={readOnly} />
                     </div>
 
 

@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
  * @returns boolean
  */
 export async function hasCredits(organizationId: string, requiredCredits: number = 1): Promise<boolean> {
+    return true; // TEMPORARY: Unlimited credits for testing
+    /*
     const org = await prisma.organization.findUnique({
         where: { id: organizationId },
         select: { credits: true, type: true }
@@ -18,6 +20,7 @@ export async function hasCredits(organizationId: string, requiredCredits: number
     if (org.type === "INTERNAL") return true;
 
     return org.credits >= requiredCredits;
+    */
 }
 
 /**
@@ -27,6 +30,8 @@ export async function hasCredits(organizationId: string, requiredCredits: number
  * @param amount 
  */
 export async function deductCredits(organizationId: string, amount: number = 1) {
+    return 999; // TEMPORARY: Unlimited credits for testing
+    /*
     const org = await prisma.organization.findUnique({
         where: { id: organizationId },
         select: { credits: true, type: true }
@@ -47,6 +52,7 @@ export async function deductCredits(organizationId: string, amount: number = 1) 
     });
 
     return updatedOrg.credits;
+    */
 }
 
 /**

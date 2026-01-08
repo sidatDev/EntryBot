@@ -1,20 +1,24 @@
-import { getOrganizations } from '@/lib/actions/organization';
+// import { getOrganizations } from '@/lib/actions/organization';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Upload, FileText, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { ArrowLeft, Upload, FileText, CheckCircle, Clock, AlertCircle, UserPlus } from "lucide-react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { AddMemberModal } from "@/components/organizations/AddMemberModal";
 
-export default async function ClientWorkspacePage({ params }: { params: { orgId: string } }) {
+export default async function ClientWorkspacePage({ params }: { params: Promise<{ orgId: string }> }) {
     const session = await getServerSession(authOptions);
     if (!session) redirect("/login");
 
+    const { orgId } = await params;
+
     const org = await prisma.organization.findUnique({
-        where: { id: params.orgId },
+        where: { id: orgId },
         include: {
+            users: true,
             _count: {
                 select: { documents: true }
             }
@@ -121,11 +125,40 @@ export default async function ClientWorkspacePage({ params }: { params: { orgId:
                     </div>
                 </div>
 
-                {/* Activity Feed / Notes */}
+                {/* Team Members List */}
                 <div className="space-y-4">
-                    <h3 className="font-semibold text-gray-900">Recent Activity</h3>
-                    <div className="bg-white rounded-xl border shadow-sm p-4 h-[300px]">
-                        <p className="text-sm text-gray-500 italic">No recent activity recorded.</p>
+                    <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-gray-900">Team Members</h3>
+                        <AddMemberModal organizationId={org.id} />
+                    </div>
+                    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                        {org.users && org.users.length > 0 ? (
+                            <ul className="divide-y divide-gray-100">
+                                {org.users.map((user) => (
+                                    <li key={user.id} className="p-3 flex items-center justify-between hover:bg-gray-50">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-medium text-xs">
+                                                {user.name?.[0] || "U"}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                                                <p className="text-xs text-gray-500">{user.email}</p>
+                                            </div>
+                                        </div>
+                                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                                                {user.role === 'ENTRY_OPERATOR' ? 'Employee' : user.role === 'EMPLOYEE' ? 'Employee' : user.role}
+                                            </span>
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <div className="p-6 text-center text-gray-400 text-sm">
+                                <UserPlus className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                <p>No members yet.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

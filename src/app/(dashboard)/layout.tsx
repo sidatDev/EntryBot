@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { HeaderAlert } from "@/components/layout/HeaderAlert";
+import { prisma } from "@/lib/prisma";
 
 export default async function DashboardLayout({
     children,
@@ -12,8 +13,20 @@ export default async function DashboardLayout({
 }) {
     const session = await getServerSession(authOptions);
 
-    if (!session) {
+    if (!session || !session.user?.email) {
         redirect("/login");
+    }
+
+    // Check if new Master Client needs onboarding
+    if (session.user.role === "CLIENT") {
+        const user = await prisma.user.findUnique({
+            where: { email: session.user.email },
+            include: { ownedOrganizations: true } // This field triggers the error if client is not generated
+        });
+
+        if (user && user.ownedOrganizations.length === 0) {
+            redirect("/onboarding");
+        }
     }
 
     return (

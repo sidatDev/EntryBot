@@ -14,6 +14,7 @@ interface DocumentListProps {
     documents: any[];
     isRecycleBin?: boolean;
     category?: string;
+    currentUser?: any;
 }
 
 const CATEGORY_OPTIONS = [
@@ -25,7 +26,7 @@ const CATEGORY_OPTIONS = [
 // const PAYMENT_METHODS = ["None", "Cash", "Bank Transfer", "Credit Card", "Debit Card", "Commonwealth Bank"]; 
 const PAYMENT_METHODS = ["None", "Cash", "Bank Transfer", "Credit Card", "Debit Card", "Commonwealth Bank"];
 
-export function DocumentList({ documents, isRecycleBin = false, category }: DocumentListProps) {
+export function DocumentList({ documents, isRecycleBin = false, category, currentUser }: DocumentListProps) {
     const router = useRouter();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -135,7 +136,7 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
                                 }
                             }}
                             disabled={selectedIds.length === 0}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed hidden"
                         >
                             <CheckSquare className="h-4 w-4" /> Approve
                         </button>
@@ -156,7 +157,7 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
             {/* Action Bar - Row 2 */}
             <div className={`flex items-center gap-2 ${isRecycleBin ? 'bg-red-500' : 'bg-blue-500'} p-2 rounded-t-lg text-white`}>
                 {/* Replaced Add Files button with UploadModal trigger or integrated it */}
-                <UploadModal category={uploadCategory} />
+                {!isRecycleBin && <UploadModal category={uploadCategory} />}
                 {/* We can wrap UploadModal trigger here or custom button */}
                 {!isRecycleBin && (
                     <>
@@ -310,7 +311,7 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
                                                         {invoice?.supplierName || <span className="text-slate-400 italic">Processing...</span>}
                                                     </td>
                                                     <td className="px-4 py-3 text-slate-600">
-                                                        {invoice?.date ? new Date(invoice.date).toLocaleDateString() : "-"}
+                                                        {invoice?.date ? new Date(invoice.date).toLocaleDateString('en-GB') : "-"}
                                                     </td>
                                                     <td className="px-4 py-3 text-right text-slate-900">
                                                         {invoice?.baseCurrencyAmount ? invoice.baseCurrencyAmount.toFixed(2) : (invoice?.totalAmount || "")}
@@ -321,10 +322,10 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
 
                                             <td className="px-4 py-3">
                                                 <select
-                                                    className="w-full text-xs border-slate-200 rounded px-2 py-1 bg-slate-50"
+                                                    className="w-full text-xs border-slate-200 rounded px-2 py-1 bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                                     value={doc.category || "OTHER"} // Handle null category
                                                     onChange={(e) => handleInlineCategoryChange(doc.id, e.target.value)}
-                                                    disabled={isRecycleBin}
+                                                    disabled={isRecycleBin || currentUser?.id !== doc.uploaderId}
                                                 >
                                                     {CATEGORY_OPTIONS.map(opt => (
                                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -349,20 +350,24 @@ export function DocumentList({ documents, isRecycleBin = false, category }: Docu
                                                         <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-700 mr-2">
                                                             Pending
                                                         </span>
-                                                        <button
-                                                            onClick={() => updateApprovalStatus(doc.id, "APPROVED")}
-                                                            className="p-1 hover:bg-green-100 text-green-600 rounded transition-colors"
-                                                            title="Approve"
-                                                        >
-                                                            <Check className="h-4 w-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => updateApprovalStatus(doc.id, "DENIED")}
-                                                            className="p-1 hover:bg-red-100 text-red-600 rounded transition-colors"
-                                                            title="Deny"
-                                                        >
-                                                            <X className="h-4 w-4" />
-                                                        </button>
+                                                        {currentUser?.id === doc.uploaderId && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => updateApprovalStatus(doc.id, "APPROVED")}
+                                                                    className="p-1 hover:bg-green-100 text-green-600 rounded transition-colors"
+                                                                    title="Approve"
+                                                                >
+                                                                    <Check className="h-4 w-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => updateApprovalStatus(doc.id, "DENIED")}
+                                                                    className="p-1 hover:bg-red-100 text-red-600 rounded transition-colors"
+                                                                    title="Deny"
+                                                                >
+                                                                    <X className="h-4 w-4" />
+                                                                </button>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 )}
                                             </td>

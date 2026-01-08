@@ -1,5 +1,5 @@
 import { getUsers, getRoles } from "@/lib/actions";
-import { getOrganizations } from "@/lib/actions/organization";
+import { getAllOrganizations } from "@/lib/actions/organization";
 import { UserListTable } from "@/components/users/UserListTable";
 import { AddUserModal } from "@/components/users/AddUserModal";
 
@@ -11,7 +11,7 @@ export default async function UsersPage({
     const { search } = await searchParams;
     const users = await getUsers(search);
     const roles = await getRoles();
-    const { data: organizations } = await getOrganizations(); // Fetch all for dropdown
+    const { data: organizations } = await getAllOrganizations(); // Fetch all for dropdown
 
     // Map roles for the modal
     const customRoles = roles.map(r => ({ id: r.id, name: r.name }));

@@ -10,6 +10,45 @@ import { shouldFlagForQA } from "@/lib/utils";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+/* -------------------------------------------------------------------------- */
+/*                                AUTH ACTIONS                                */
+/* -------------------------------------------------------------------------- */
+
+export async function registerUser(name: string, email: string, passwordHash: string) {
+    if (!name || !email || !passwordHash) {
+        return { success: false, error: "Missing required fields" };
+    }
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+        where: { email },
+    });
+
+    if (existingUser) {
+        return { success: false, error: "User already exists with this email" };
+    }
+
+    try {
+        const hashedPassword = await hash(passwordHash, 10);
+
+        // Create new user with CLIENT role
+        const newUser = await prisma.user.create({
+            data: {
+                name,
+                email,
+                passwordHash: hashedPassword,
+                role: "CLIENT", // Force CLIENT role for self-signup
+                status: "ACTIVE",
+            },
+        });
+
+        return { success: true, userId: newUser.id };
+    } catch (error) {
+        console.error("REGISTRATION ERROR:", error);
+        return { success: false, error: "Failed to create account" };
+    }
+}
+
 export async function uploadDocument(formData: FormData) {
     const file = formData.get("file") as File;
     const userId = formData.get("userId") as string;
@@ -57,7 +96,8 @@ export async function uploadDocument(formData: FormData) {
             uploaderId: userId,
             status: "UPLOADED",
             category: category,
-            source: "UPLOAD"
+            source: "UPLOAD",
+            organizationId: user.organizationId
         }
     });
 
@@ -169,6 +209,9 @@ export async function splitDocument(documentId: string) {
 }
 
 export async function getDocumentMetadata(documentId: string) {
+    const session = await getServerSession(authOptions);
+    const userFn = session?.user;
+
     const doc = await prisma.document.findUnique({
         where: { id: documentId },
         select: {
@@ -178,21 +221,44 @@ export async function getDocumentMetadata(documentId: string) {
             category: true,
             createdAt: true,
             url: true, // Need URL for double check
+            uploaderId: true, // Need for check
             user: {
                 select: { name: true }
             },
             identityCard: true // Allow fetching relation
         }
     });
+
+    if (!doc) return null;
+
+    // ISOLATION CHECK
+    if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
+        // If user is not the uploader, denial of service (return null or throw)
+        if (doc.uploaderId !== userFn.id) {
+            // We could throw new Error("Unauthorized"), but returning null is safer for UI handling often
+            console.error(`Unauthorized access attempt by ${userFn.email} on doc ${documentId}`);
+            return null; // treat as not found
+        }
+    }
+
     return doc;
 }
 
 // --- DOCUMENTS ---
 
 export async function getDocuments(category?: string, status?: string, assignedToId?: string) {
+    const session = await getServerSession(authOptions);
+    const userFn = session?.user;
+
     const where: any = {
         deletedAt: null,
     };
+
+    // ISOLATION: If not Admin/Manager, restrict to own documents
+    // Assuming 'ADMIN' and 'MANAGER' have global view.
+    if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
+        where.uploaderId = userFn.id;
+    }
 
     // Filter by category if provided
     if (category === "SALES_INVOICE") {
@@ -608,10 +674,20 @@ export async function exportInvoicesToCSV(documentIds?: string[]) {
 }
 
 export async function getDashboardStats() {
-    const totalDocs = await prisma.document.count({ where: { status: { not: "DELETED" } } });
-    const processing = await prisma.document.count({ where: { status: "PROCESSING" } });
-    const completed = await prisma.document.count({ where: { status: "COMPLETED" } });
-    const uploaded = await prisma.document.count({ where: { status: "UPLOADED" } });
+    const session = await getServerSession(authOptions);
+    const userFn = session?.user;
+
+    const where: any = { status: { not: "DELETED" } };
+
+    // ISOLATION
+    if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
+        where.uploaderId = userFn.id;
+    }
+
+    const totalDocs = await prisma.document.count({ where });
+    const processing = await prisma.document.count({ where: { ...where, status: "PROCESSING" } });
+    const completed = await prisma.document.count({ where: { ...where, status: "COMPLETED" } });
+    const uploaded = await prisma.document.count({ where: { ...where, status: "UPLOADED" } });
 
     // Mock data for graphs and other widgets until real data is available
     const expenses = [
@@ -626,8 +702,8 @@ export async function getDashboardStats() {
 
     const processingInvoices = await prisma.document.count({
         where: {
+            ...where,
             status: "PROCESSING",
-            // In future, filter by document type if we distinguish Invoice vs Bank Statement at Upload
         }
     });
 
@@ -639,7 +715,7 @@ export async function getDashboardStats() {
             uploaded: uploaded,
         },
         invoicesReceipts: {
-            processing: processingInvoices, // Using same for now
+            processing: processingInvoices,
             ready: completed
         },
         bankStatements: {
@@ -651,10 +727,19 @@ export async function getDashboardStats() {
 }
 
 export async function getBankStatements(status?: string) {
+    const session = await getServerSession(authOptions);
+    const userFn = session?.user;
+
     const whereClause: any = {
         category: { in: ["STATEMENT", "BANK_STATEMENT", "CARD_STATEMENT"] }, // Flexible check
         status: { not: "DELETED" }
     };
+
+    // ISOLATION
+    if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
+        whereClause.uploaderId = userFn.id;
+    }
+
     if (status && status !== "ALL") {
         whereClause.status = status; // This status is on the Document model for high level
     }
@@ -698,11 +783,21 @@ export async function updateBankStatementMetadata(documentId: string, data: {
 /* OTHER DOCUMENTS & TAGGING ACTIONS */
 
 export async function getOtherDocuments() {
+    const session = await getServerSession(authOptions);
+    const userFn = session?.user;
+
+    const where: any = {
+        category: "OTHER",
+        status: { not: "DELETED" }
+    };
+
+    // ISOLATION
+    if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
+        where.uploaderId = userFn.id;
+    }
+
     return await prisma.document.findMany({
-        where: {
-            category: "OTHER",
-            status: { not: "DELETED" }
-        },
+        where,
         orderBy: { createdAt: "desc" },
         include: {
             tags: true
@@ -776,9 +871,17 @@ export async function searchTags(query: string) {
 }
 
 export async function getUploadHistory(page: number = 1, limit: number = 25, search?: string) {
+    const session = await getServerSession(authOptions);
+    const userFn = session?.user;
+
     const whereClause: any = {
         // We want ALL statuses, including DELETED and UPLOADED, so no default filter
     };
+
+    // ISOLATION
+    if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
+        whereClause.uploaderId = userFn.id;
+    }
 
     if (search) {
         whereClause.name = { contains: search };

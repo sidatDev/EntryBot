@@ -17,13 +17,35 @@ export default async function DashboardPage() {
 
     const user = await prisma.user.findUnique({
         where: { id: userId },
-        include: { organization: true }
+        include: {
+            organization: true,
+            ownedOrganizations: true
+        }
     });
 
-    if (!user?.organization) return <div>No Organization Found</div>;
+    // Fallback: If user has no current org but owns some, switch context to first owned one
+    let currentOrg = user?.organization;
+    if (!currentOrg && user?.ownedOrganizations && user.ownedOrganizations.length > 0) {
+        currentOrg = user.ownedOrganizations[0];
+    }
 
-    const orgType = user.organization.type;
-    const orgId = user.organization.id;
+    if (!currentOrg) {
+        return (
+            <div className="p-8 flex flex-col items-center justify-center min-h-[50vh] text-center">
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">Welcome to EntryBot</h1>
+                <p className="text-gray-500 mb-8 max-w-md">
+                    You don't have an organization workspace set up yet. Please check the Hub or contact support.
+                </p>
+                {/* Fallback link to Hub/Onboarding */}
+                <a href="/hub" className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                    Go to Hub
+                </a>
+            </div>
+        );
+    }
+
+    const orgType = currentOrg.type;
+    const orgId = currentOrg.id;
 
     // View Logic
     if (orgType === "MASTER") {
