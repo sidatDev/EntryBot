@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2, Save, FileText, Sparkles, User, MapPin, Calendar, CreditCard } from "lucide-react";
+import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { saveIdentityCard } from "@/lib/actions/identity-cards"; // We just created this
 import { getDocumentMetadata } from "@/lib/actions";
@@ -105,52 +106,83 @@ export function IdentityCardForm({ documentId, documentUrl }: { documentId: stri
                 }),
             });
 
+            let data;
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `Failed to process document (${response.status})`);
+
+                // CHECK FOR STRUCTURED ERROR (e.g. CNIC Mismatch)
+                if (errorData.detail) {
+                    // Show the specific error message
+                    const errorMessage = errorData.detail.details || errorData.detail.error?.text || "Validation Error";
+
+                    toast.warning("Attention", {
+                        description: errorMessage,
+                        duration: 5000,
+                    });
+
+                    // Use partial/structured data if available
+                    if (errorData.detail.mapped_data) {
+                        data = errorData.detail.mapped_data;
+                    } else {
+                        // Prefix with "Validation Error" so the catch block knows it's already handled/shown
+                        throw new Error("Validation Error: " + (errorData.error || errorMessage));
+                    }
+                } else {
+                    throw new Error(errorData.error || `Failed to process document (${response.status})`);
+                }
+            } else {
+                data = await response.json();
             }
-            const data = await response.json();
 
             // Map Response to Form (Assuming structure matches user example)
             // Response has "structured_data": { "cardFront": {...}, "cardBack": {...} }
 
-            const front = data.structured_data?.cardFront || {};
-            const back = data.structured_data?.cardBack || {};
+            if (data?.structured_data) {
+                const front = data.structured_data.cardFront || {};
+                const back = data.structured_data.cardBack || {};
 
-            // Front Data
-            if (front.fullName) setValue("fullName", front.fullName);
-            if (front.fatherName) setValue("fatherName", front.fatherName);
-            if (front.gender) setValue("gender", front.gender);
-            if (front.countryOfStay) setValue("countryOfStay", front.countryOfStay);
-            if (front.identityNumber) setValue("identityNumber", front.identityNumber);
+                // Front Data
+                if (front.fullName) setValue("fullName", front.fullName);
+                if (front.fatherName) setValue("fatherName", front.fatherName);
+                if (front.gender) setValue("gender", front.gender);
+                if (front.countryOfStay) setValue("countryOfStay", front.countryOfStay);
+                if (front.identityNumber) setValue("identityNumber", front.identityNumber);
 
-            // Date Parsing helper (DD/MM/YYYY or DD.MM.YYYY -> YYYY-MM-DD)
-            const parseDate = (d: string) => {
-                if (!d) return "";
-                // Normalize separators (replace . and - with /)
-                const normalized = d.replace(/[.-]/g, "/");
-                const parts = normalized.split("/");
+                // Date Parsing helper (DD/MM/YYYY or DD.MM.YYYY -> YYYY-MM-DD)
+                const parseDate = (d: string) => {
+                    if (!d) return "";
+                    // Normalize separators (replace . and - with /)
+                    const normalized = d.replace(/[.-]/g, "/");
+                    const parts = normalized.split("/");
 
-                if (parts.length !== 3) return "";
+                    if (parts.length !== 3) return "";
 
-                const [day, month, year] = parts;
-                return `${year}-${month}-${day}`;
-            };
+                    const [day, month, year] = parts;
+                    return `${year}-${month}-${day}`;
+                };
 
-            if (front.dateOfIssue) setValue("dateOfIssue", parseDate(front.dateOfIssue));
-            if (front.dateOfBirth) setValue("dateOfBirth", parseDate(front.dateOfBirth));
-            if (front.dateOfExpiry) setValue("dateOfExpiry", parseDate(front.dateOfExpiry));
+                if (front.dateOfIssue) setValue("dateOfIssue", parseDate(front.dateOfIssue));
+                if (front.dateOfBirth) setValue("dateOfBirth", parseDate(front.dateOfBirth));
+                if (front.dateOfExpiry) setValue("dateOfExpiry", parseDate(front.dateOfExpiry));
 
-            if (front.urduFullName) setValue("urduFullName", front.urduFullName);
-            if (front.urduFatherName) setValue("urduFatherName", front.urduFatherName);
+                if (front.urduFullName) setValue("urduFullName", front.urduFullName);
+                if (front.urduFatherName) setValue("urduFatherName", front.urduFatherName);
 
-            // Back Data
-            if (back.currentAddress) setValue("currentAddress", back.currentAddress);
-            if (back.permanentAddress) setValue("permanentAddress", back.permanentAddress);
+                // Back Data
+                if (back.currentAddress) setValue("currentAddress", back.currentAddress);
+                if (back.permanentAddress) setValue("permanentAddress", back.permanentAddress);
+            }
 
-        } catch (error) {
+        } catch (error: any) {
+            // Suppress console error for known validation warnings that have already been toasted
+            if (error.message?.includes("Validation Error") || error.message?.includes("Attention:")) {
+                console.log("Validation warning handled:", error.message);
+                return;
+            }
+
             console.error("AI Processing Error:", error);
-            alert("Failed to auto-fill data. Please try again or fill manually.");
+            toast.error("Auto-fill Failed", { description: error.message || "Failed to auto-fill data. Please try again or fill manually." });
         } finally {
             setProcessingAi(false);
         }

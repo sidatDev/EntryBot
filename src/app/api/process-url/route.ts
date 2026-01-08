@@ -109,9 +109,6 @@ export async function POST(req: Request) {
         if (language) {
             payload.language = language;
         }
-        if (language) {
-            payload.language = language;
-        }
 
         const response = await fetch(ocrServiceUrl, {
             method: "POST",
@@ -122,67 +119,35 @@ export async function POST(req: Request) {
         if (!response.ok) {
             const errorText = await response.text();
             console.error(`[Process-AI] External OCR Service Error: ${response.status} ${errorText}`);
-            throw new Error(`OCR Service failed with status ${response.status}`);
+
+            // Try to parse as JSON to see if it's a structured error we can forward
+            try {
+                const errorJson = JSON.parse(errorText);
+                if (errorJson && errorJson.detail) {
+                    // If we have structured data in the error, let's try to map it so the client can use it
+                    if (errorJson.detail.structured_data) {
+                        try {
+                            const partialMappedData = mapOcrData(documentType, errorJson.detail.structured_data);
+                            errorJson.detail.mapped_data = partialMappedData;
+                        } catch (mapErr) {
+                            console.warn("Failed to map partial error data", mapErr);
+                        }
+                    }
+
+                    // Forward the structured error to the client
+                    return NextResponse.json(errorJson, { status: response.status });
+                }
+            } catch (e) {
+                // Not JSON, fall through to generic error
+            }
+
+            throw new Error(`OCR Service failed with status ${response.status}: ${errorText}`);
         }
 
         const result = await response.json() as ExternalOCRResponse;
         console.log(`[Process-AI] OCR Success. Status: ${result.status}, Type (Req): ${documentType}, Type (Res): ${result.documentType}`);
 
-        const data = result.structured_data;
-        let mappedData: any = {};
-
-        // 1 = Invoice (Default), 2 = Statement
-        // 1 = Invoice (Default), 2 = Statement
-        // Use documentType from request since response might not echo it
-        if (Number(documentType) === 2) {
-            // Map Bank Statement
-            mappedData = {
-                type: "STATEMENT",
-                accountTitle: data.accountTitle || "",
-                accountNumber: data.accountNumber || "",
-                iban: data.iban || "",
-                address: data.address || "",
-                fromDate: parseDate(data.fromDate),
-                toDate: parseDate(data.toDate),
-                currency: data.currency || "USD",
-                openingBalance: data.openingBalance || 0,
-                closingBalance: data.closingBalance || 0,
-                transactions: (data.transactions || []).map(t => ({
-                    bookingDate: parseDate(t.date || t.bookingDate),
-                    description: t.Description || t.description || "",
-                    debit: t.debit || 0,
-                    credit: t.credit || 0,
-                    // If balance is provided in API use it, otherwise mapped to availableBalance
-                    availableBalance: t.balance || t.availableBalance || 0
-                }))
-            };
-        } else if (Number(documentType) === 3) {
-            // Map Identity Card
-            mappedData = {
-                type: "IDENTITY_CARD",
-                structured_data: data // Pass through the raw structured data (cardFront, cardBack)
-            };
-        } else {
-            // Map Invoice
-            mappedData = {
-                type: "INVOICE",
-                invoiceNumber: data.Document_Number || "",
-                date: parseDate(data.Document_Date),
-                dueDate: parseDate(data.Due_Payment_Date),
-                supplierName: data.Contact_Name || "",
-                totalAmount: parseAmount(data.Gross_Amount),
-                taxTotal: parseAmount(data.VAT_GST_Amount_invoice_currency),
-                subTotal: parseAmount(data.Net_Amount_invoice_currency),
-                vatRate: parseAmount(data.VAT_GST_Rate_invoice_currency),
-                currency: data.Transaction_Currency || "USD",
-                lineItems: (data.line_items || []).map(item => ({
-                    description: item.item_description || "",
-                    quantity: parseAmount(item.quantity || "1"),
-                    unitPrice: parseAmount(item.unit_price || "0"),
-                    total: parseAmount(item.total || "0")
-                }))
-            };
-        }
+        const mappedData = mapOcrData(documentType, result.structured_data);
 
         // Update Database with Extracted Text
         if (documentId && result.raw_text) {
@@ -206,4 +171,62 @@ export async function POST(req: Request) {
             { status: 500 }
         );
     }
+}
+
+function mapOcrData(documentType: number | undefined, data: any) {
+    let mappedData: any = {};
+
+    // 1 = Invoice (Default), 2 = Statement
+    // Use documentType from request since response might not echo it
+    if (Number(documentType) === 2) {
+        // Map Bank Statement
+        mappedData = {
+            type: "STATEMENT",
+            accountTitle: data.accountTitle || "",
+            accountNumber: data.accountNumber || "",
+            iban: data.iban || "",
+            address: data.address || "",
+            fromDate: parseDate(data.fromDate),
+            toDate: parseDate(data.toDate),
+            currency: data.currency || "USD",
+            openingBalance: data.openingBalance || 0,
+            closingBalance: data.closingBalance || 0,
+            transactions: (data.transactions || []).map((t: any) => ({
+                bookingDate: parseDate(t.date || t.bookingDate),
+                description: t.Description || t.description || "",
+                debit: t.debit || 0,
+                credit: t.credit || 0,
+                // If balance is provided in API use it, otherwise mapped to availableBalance
+                availableBalance: t.balance || t.availableBalance || 0
+            }))
+        };
+    } else if (Number(documentType) === 3) {
+        // Map Identity Card
+        mappedData = {
+            type: "IDENTITY_CARD",
+            structured_data: data // Pass through the raw structured data (cardFront, cardBack)
+        };
+    } else {
+        // Map Invoice
+        mappedData = {
+            type: "INVOICE",
+            invoiceNumber: data.Document_Number || "",
+            date: parseDate(data.Document_Date),
+            dueDate: parseDate(data.Due_Payment_Date),
+            supplierName: data.Contact_Name || "",
+            customerName: data.Contact_Name || "", // Ambiguous in OCR, usually Supplier for purchase
+            totalAmount: parseAmount(data.Gross_Amount),
+            taxTotal: parseAmount(data.VAT_GST_Amount_invoice_currency),
+            subTotal: parseAmount(data.Net_Amount_invoice_currency),
+            vatRate: parseAmount(data.VAT_GST_Rate_invoice_currency),
+            currency: data.Transaction_Currency || "USD",
+            lineItems: (data.line_items || []).map((item: any) => ({
+                description: item.item_description || "",
+                quantity: parseAmount(item.quantity || "1"),
+                unitPrice: parseAmount(item.unit_price || "0"),
+                total: parseAmount(item.total || "0")
+            }))
+        };
+    }
+    return mappedData;
 }
