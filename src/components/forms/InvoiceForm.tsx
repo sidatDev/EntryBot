@@ -50,7 +50,7 @@ interface LineItem {
     total: number;
 }
 
-export function InvoiceForm({ documentId, documentUrl }: { documentId: string; documentUrl: string }) {
+export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { documentId: string; documentUrl: string; readOnly?: boolean }) {
     const router = useRouter();
     const [saving, setSaving] = useState(false);
     const [processingAi, setProcessingAi] = useState(false);
@@ -293,10 +293,10 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
     };
 
     // Styles
-    const inputClass = "w-full border-b border-slate-300 focus:border-indigo-600 outline-none px-0 py-2 bg-transparent text-slate-800 placeholder:text-slate-400 sm:text-sm transition-colors";
+    const inputClass = "w-full border-b border-slate-300 focus:border-indigo-600 outline-none px-0 py-2 bg-transparent text-slate-800 placeholder:text-slate-400 sm:text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
     const labelClass = "text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 block";
     const columnHeaderClass = "text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-4 border-b border-slate-100 pb-2";
-    const amountInputClass = "w-full text-right border-b border-slate-300 focus:border-indigo-600 outline-none bg-transparent font-medium sm:text-lg py-1";
+    const amountInputClass = "w-full text-right border-b border-slate-300 focus:border-indigo-600 outline-none bg-transparent font-medium sm:text-lg py-1 disabled:opacity-50 disabled:cursor-not-allowed";
 
     return (
         <div className="h-full flex flex-col bg-white">
@@ -317,14 +317,16 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                         </div>
                     </div>
                 </div>
-                <button
-                    onClick={handleAutoFill}
-                    disabled={processingAi}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-50 hover:border-indigo-200 transition-all text-sm font-medium shadow-sm disabled:opacity-50"
-                >
-                    {processingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    Auto-fill
-                </button>
+                {!readOnly && (
+                    <button
+                        onClick={handleAutoFill}
+                        disabled={processingAi}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-50 hover:border-indigo-200 transition-all text-sm font-medium shadow-sm disabled:opacity-50"
+                    >
+                        {processingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        Auto-fill
+                    </button>
+                )}
             </div>
 
             {/* Scrollable Form Area */}
@@ -339,6 +341,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                                 {...form.register("contactName")}
                                 className={inputClass}
                                 placeholder="e.g. Acme Corp"
+                                disabled={readOnly}
                             />
                         </div>
                         <div className="col-span-4">
@@ -347,6 +350,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                                 {...form.register("invoiceNumber")}
                                 className={inputClass}
                                 placeholder="INV-001"
+                                disabled={readOnly}
                             />
                         </div>
                     </div>
@@ -355,11 +359,11 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                     <div className="grid grid-cols-12 gap-x-8">
                         <div className="col-span-6">
                             <label className={labelClass}>Document Date *</label>
-                            <input type="date" {...form.register("date")} className={inputClass} />
+                            <input type="date" {...form.register("date")} className={inputClass} disabled={readOnly} />
                         </div>
                         <div className="col-span-6">
                             <label className={labelClass}>Due/Payment Date</label>
-                            <input type="date" {...form.register("dueDate")} className={inputClass} />
+                            <input type="date" {...form.register("dueDate")} className={inputClass} disabled={readOnly} />
                         </div>
                         <div className="col-span-6"></div>
                     </div>
@@ -368,7 +372,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                     <div className="grid grid-cols-12 gap-x-8 border-b border-slate-100 pb-8">
                         <div className="col-span-4">
                             <label className={labelClass}>Transaction Currency *</label>
-                            <select {...form.register("currency")} className={inputClass}>
+                            <select {...form.register("currency")} className={inputClass} disabled={readOnly}>
                                 <option value="USD">USD ($)</option>
                                 <option value="GBP">GBP (£)</option>
                                 <option value="EUR">EUR (€)</option>
@@ -377,7 +381,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                         </div>
                         <div className="col-span-4">
                             <label className={labelClass}>Target/Invoice Currency *</label>
-                            <select {...form.register("invoiceCurrency")} className={inputClass}>
+                            <select {...form.register("invoiceCurrency")} className={inputClass} disabled={readOnly}>
                                 <option value="USD">USD ($)</option>
                                 <option value="GBP">GBP (£)</option>
                                 <option value="EUR">EUR (€)</option>
@@ -391,6 +395,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                                 step="0.0001"
                                 {...form.register("exchangeRate", { valueAsNumber: true })}
                                 className={inputClass}
+                                disabled={readOnly}
                             />
                         </div>
                     </div>
@@ -406,7 +411,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                         </div>
                         <div className="col-span-6 ">
                             <label className={labelClass}>Payment Method *</label>
-                            <select {...form.register("paymentMethod")} className={inputClass}>
+                            <select {...form.register("paymentMethod")} className={inputClass} disabled={readOnly}>
                                 <option value="">None</option>
                                 <option value="Cash">Cash</option>
                                 <option value="Bank">Bank Transfer</option>
@@ -420,6 +425,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                                 rows={2}
                                 className={inputClass + " resize-none overflow-hidden"}
                                 placeholder="Additional details..."
+                                disabled={readOnly}
                             />
                         </div>
 
@@ -446,6 +452,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                                     step="0.01"
                                     {...form.register("netAmount", { valueAsNumber: true })}
                                     className={amountInputClass + " text-slate-700"}
+                                    disabled={readOnly}
                                 />
                             </div>
                             <div className="border-b border-slate-100 pb-2">
@@ -455,6 +462,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                                     step="0.01"
                                     {...form.register("baseNetAmount", { valueAsNumber: true })}
                                     className={amountInputClass + " text-slate-500"}
+                                    disabled={readOnly}
                                 />
                             </div>
 
@@ -466,6 +474,7 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
                                         type="number"
                                         {...form.register("vatRate", { valueAsNumber: true })}
                                         className="w-12 text-right border-b border-slate-300 focus:border-indigo-600 outline-none text-sm py-1"
+                                        disabled={readOnly}
                                     />
                                 </div>
                                 <div>
@@ -530,25 +539,27 @@ export function InvoiceForm({ documentId, documentUrl }: { documentId: string; d
 
 
                     {/* Action Buttons */}
-                    <div className="flex gap-4 pt-10 border-t border-slate-100 mt-8">
-                        <button
-                            type="button"
-                            onClick={form.handleSubmit((data) => onSubmit(data, true))}
-                            disabled={saving}
-                            className="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-all flex items-center gap-2 disabled:opacity-50"
-                        >
-                            Save & New
-                        </button>
-                        <button
-                            type="button"
-                            onClick={form.handleSubmit((data) => onSubmit(data, false))}
-                            disabled={saving}
-                            className="px-8 py-2.5 bg-indigo-600 text-white font-medium rounded-lg shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2 ml-auto disabled:opacity-50"
-                        >
-                            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                            Save Invoice
-                        </button>
-                    </div>
+                    {!readOnly && (
+                        <div className="flex gap-4 pt-10 border-t border-slate-100 mt-8">
+                            <button
+                                type="button"
+                                onClick={form.handleSubmit((data) => onSubmit(data, true))}
+                                disabled={saving}
+                                className="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-all flex items-center gap-2 disabled:opacity-50"
+                            >
+                                Save & New
+                            </button>
+                            <button
+                                type="button"
+                                onClick={form.handleSubmit((data) => onSubmit(data, false))}
+                                disabled={saving}
+                                className="px-8 py-2.5 bg-indigo-600 text-white font-medium rounded-lg shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2 ml-auto disabled:opacity-50"
+                            >
+                                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                                Save Invoice
+                            </button>
+                        </div>
+                    )}
 
 
                 </form>

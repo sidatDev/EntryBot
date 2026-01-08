@@ -11,7 +11,7 @@ export interface UserPermissions {
 // Admin has all permissions
 const ADMIN_PERMISSIONS = "*";
 
-// Default permissions for CLIENT role (SUBMITTER in DB)
+// Default permissions for CLIENT role
 const CLIENT_PERMISSIONS: Permission[] = [
     "dashboard.view",
     "invoices.view",
@@ -22,6 +22,7 @@ const CLIENT_PERMISSIONS: Permission[] = [
     "other.upload",
     "history.view",
     "recycle.view",
+    "integration.view",
 ];
 
 /**
@@ -56,7 +57,7 @@ export async function getUserPermissions(userId: string): Promise<UserPermission
 
     if (!user) {
         return {
-            role: "SUBMITTER",
+            role: "GUEST",
             permissions: []
         };
     }
@@ -66,6 +67,14 @@ export async function getUserPermissions(userId: string): Promise<UserPermission
         return {
             role: "ADMIN",
             permissions: [ADMIN_PERMISSIONS]
+        };
+    }
+
+    // Client Role
+    if (user.role === "CLIENT") {
+        return {
+            role: "CLIENT",
+            permissions: CLIENT_PERMISSIONS
         };
     }
 
@@ -83,10 +92,12 @@ export async function getUserPermissions(userId: string): Promise<UserPermission
         }
     }
 
-    // Default CLIENT permissions
+    // Default Fallback (e.g. ENTRY_OPERATOR or others)
+    // For now, let's give them basic access or defined permissions
+    // You might want to define ENTRY_OPERATOR_PERMISSIONS separately
     return {
         role: user.role,
-        permissions: CLIENT_PERMISSIONS
+        permissions: []
     };
 }
 

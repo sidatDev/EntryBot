@@ -34,7 +34,7 @@ const identityCardSchema = z.object({
 
 type IdentityCardFormValues = z.infer<typeof identityCardSchema>;
 
-export function IdentityCardForm({ documentId, documentUrl }: { documentId: string; documentUrl: string }) {
+export function IdentityCardForm({ documentId, documentUrl, readOnly = false }: { documentId: string; documentUrl: string; readOnly?: boolean }) {
     const router = useRouter();
     const [saving, setSaving] = useState(false);
     const [processingAi, setProcessingAi] = useState(false);
@@ -189,7 +189,7 @@ export function IdentityCardForm({ documentId, documentUrl }: { documentId: stri
     };
 
     // Styles
-    const inputClass = "w-full border-b border-slate-300 focus:border-indigo-600 outline-none px-0 py-2 bg-transparent text-slate-800 placeholder:text-slate-400 sm:text-sm transition-colors";
+    const inputClass = "w-full border-b border-slate-300 focus:border-indigo-600 outline-none px-0 py-2 bg-transparent text-slate-800 placeholder:text-slate-400 sm:text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
     const labelClass = "text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 block";
     const sectionTitleClass = "text-sm font-bold text-indigo-600 uppercase tracking-wider mb-6 pb-2 border-b border-indigo-50 flex items-center gap-2";
 
@@ -212,14 +212,16 @@ export function IdentityCardForm({ documentId, documentUrl }: { documentId: stri
                         </div>
                     </div>
                 </div>
-                <button
-                    onClick={handleAutoFill}
-                    disabled={processingAi}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-50 hover:border-indigo-200 transition-all text-sm font-medium shadow-sm disabled:opacity-50"
-                >
-                    {processingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    Auto-fill with AI
-                </button>
+                {!readOnly && (
+                    <button
+                        onClick={handleAutoFill}
+                        disabled={processingAi}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-50 hover:border-indigo-200 transition-all text-sm font-medium shadow-sm disabled:opacity-50"
+                    >
+                        {processingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        Auto-fill with AI
+                    </button>
+                )}
             </div>
 
             {/* Scrollable Form Area */}
@@ -262,29 +264,29 @@ export function IdentityCardForm({ documentId, documentUrl }: { documentId: stri
                         <div className="grid grid-cols-12 gap-8">
                             <div className="col-span-6">
                                 <label className={labelClass}>Full Name (English)</label>
-                                <input {...form.register("fullName")} className={inputClass} />
+                                <input {...form.register("fullName")} className={inputClass} disabled={readOnly} />
                             </div>
                             <div className="col-span-6 text-right" dir="rtl">
                                 <label className={labelClass + " text-right"}>Full Name (Urdu)</label>
-                                <input {...form.register("urduFullName")} className={inputClass + " text-right font-urdu"} placeholder="یا" />
+                                <input {...form.register("urduFullName")} className={inputClass + " text-right font-urdu"} placeholder="یا" disabled={readOnly} />
                             </div>
 
                             <div className="col-span-6">
                                 <label className={labelClass}>Father Name (English)</label>
-                                <input {...form.register("fatherName")} className={inputClass} />
+                                <input {...form.register("fatherName")} className={inputClass} disabled={readOnly} />
                             </div>
                             <div className="col-span-6 text-right" dir="rtl">
                                 <label className={labelClass + " text-right"}>Father Name (Urdu)</label>
-                                <input {...form.register("urduFatherName")} className={inputClass + " text-right font-urdu"} />
+                                <input {...form.register("urduFatherName")} className={inputClass + " text-right font-urdu"} disabled={readOnly} />
                             </div>
 
                             <div className="col-span-4">
                                 <label className={labelClass}>Gender</label>
-                                <input {...form.register("gender")} className={inputClass} placeholder="M / F" />
+                                <input {...form.register("gender")} className={inputClass} placeholder="M / F" disabled={readOnly} />
                             </div>
                             <div className="col-span-8">
                                 <label className={labelClass}>Country of Stay</label>
-                                <input {...form.register("countryOfStay")} className={inputClass} />
+                                <input {...form.register("countryOfStay")} className={inputClass} disabled={readOnly} />
                             </div>
                         </div>
                     </div>
@@ -297,20 +299,20 @@ export function IdentityCardForm({ documentId, documentUrl }: { documentId: stri
                         <div className="grid grid-cols-12 gap-8">
                             <div className="col-span-12">
                                 <label className={labelClass}>Identity Number (CNIC)</label>
-                                <input {...form.register("identityNumber")} className={inputClass + " font-mono text-lg tracking-widest"} placeholder="00000-0000000-0" />
+                                <input {...form.register("identityNumber")} className={inputClass + " font-mono text-lg tracking-widest"} placeholder="00000-0000000-0" disabled={readOnly} />
                             </div>
 
                             <div className="col-span-4">
                                 <label className={labelClass}>Date of Birth</label>
-                                <input type="date" {...form.register("dateOfBirth")} className={inputClass} />
+                                <input type="date" {...form.register("dateOfBirth")} className={inputClass} disabled={readOnly} />
                             </div>
                             <div className="col-span-4">
                                 <label className={labelClass}>Date of Issue</label>
-                                <input type="date" {...form.register("dateOfIssue")} className={inputClass} />
+                                <input type="date" {...form.register("dateOfIssue")} className={inputClass} disabled={readOnly} />
                             </div>
                             <div className="col-span-4">
                                 <label className={labelClass}>Date of Expiry</label>
-                                <input type="date" {...form.register("dateOfExpiry")} className={inputClass} />
+                                <input type="date" {...form.register("dateOfExpiry")} className={inputClass} disabled={readOnly} />
                             </div>
                         </div>
                     </div>
@@ -323,11 +325,11 @@ export function IdentityCardForm({ documentId, documentUrl }: { documentId: stri
                         <div className="space-y-6">
                             <div>
                                 <label className={labelClass}>Current Address</label>
-                                <textarea {...form.register("currentAddress")} rows={2} className={inputClass + " resize-none"} />
+                                <textarea {...form.register("currentAddress")} rows={2} className={inputClass + " resize-none"} disabled={readOnly} />
                             </div>
                             <div>
                                 <label className={labelClass}>Permanent Address</label>
-                                <textarea {...form.register("permanentAddress")} rows={2} className={inputClass + " resize-none"} />
+                                <textarea {...form.register("permanentAddress")} rows={2} className={inputClass + " resize-none"} disabled={readOnly} />
                             </div>
                         </div>
                     </div>

@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 
-export function ProcessPageClient({ document, initialInvoices }: { document: any, initialInvoices: any[] }) {
+export function ProcessPageClient({ document, initialInvoices, isReadOnly = false }: { document: any, initialInvoices: any[], isReadOnly?: boolean }) {
     const isStatement = document.category === "STATEMENT";
     const isIdCard = document.category === "IDENTITY_CARD" || document.category === "ID_CARD"; // Handle legacy if any
 
@@ -79,7 +79,7 @@ export function ProcessPageClient({ document, initialInvoices }: { document: any
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0">
-                        {document.status !== "COMPLETED" && (
+                        {document.status !== "COMPLETED" && !isReadOnly && (
                             <button
                                 onClick={async () => await updateDocumentStatus(document.id, "COMPLETED")}
                                 className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium shadow-md shadow-emerald-100 whitespace-nowrap"
@@ -130,13 +130,13 @@ export function ProcessPageClient({ document, initialInvoices }: { document: any
                 </div>
                 <div className="w-full lg:w-1/2 flex-1 lg:h-full bg-white overflow-hidden">
                     {mode === "INVOICE" && (
-                        <InvoiceForm documentId={document.id} documentUrl={document.url} />
+                        <InvoiceForm documentId={document.id} documentUrl={document.url} readOnly={isReadOnly} />
                     )}
                     {mode === "BANK_STATEMENT" && (
-                        <BankStatementForm documentId={document.id} documentUrl={document.url} />
+                        <BankStatementForm documentId={document.id} documentUrl={document.url} readOnly={isReadOnly} />
                     )}
                     {mode === "IDENTITY_CARD" && (
-                        <IdentityCardForm documentId={document.id} documentUrl={document.url} />
+                        <IdentityCardForm documentId={document.id} documentUrl={document.url} readOnly={isReadOnly} />
                     )}
                 </div>
             </div>
