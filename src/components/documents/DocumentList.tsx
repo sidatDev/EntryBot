@@ -157,7 +157,8 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
             {/* Action Bar - Row 2 */}
             <div className={`flex items-center gap-2 ${isRecycleBin ? 'bg-red-500' : 'bg-blue-500'} p-2 rounded-t-lg text-white`}>
                 {/* Replaced Add Files button with UploadModal trigger or integrated it */}
-                {!isRecycleBin && <UploadModal category={uploadCategory} />}
+                {/* Check upload permissions: Entry Operator cannot upload */}
+                {!isRecycleBin && currentUser?.role !== "ENTRY_OPERATOR" && <UploadModal category={uploadCategory} />}
                 {/* We can wrap UploadModal trigger here or custom button */}
                 {!isRecycleBin && (
                     <>
@@ -373,7 +374,21 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    {!isRecycleBin && (
+                                                    {/* Claim Button for Operators */}
+                                                    {!isRecycleBin && !doc.assignedToId && currentUser?.role === "ENTRY_OPERATOR" && (
+                                                        <button
+                                                            onClick={async () => {
+                                                                await assignDocumentToMe(doc.id);
+                                                                showNotification("Document claimed!", "success");
+                                                                router.refresh();
+                                                            }}
+                                                            className="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-xs font-semibold flex items-center gap-1"
+                                                        >
+                                                            <CheckSquare className="h-3 w-3" /> Claim
+                                                        </button>
+                                                    )}
+
+                                                    {!isRecycleBin && (doc.assignedToId === currentUser?.id || currentUser?.role !== "ENTRY_OPERATOR") && (
                                                         <>
                                                             <Link
                                                                 href={`/documents/${doc.id}/process`}

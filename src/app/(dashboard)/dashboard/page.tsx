@@ -48,6 +48,7 @@ export default async function DashboardPage() {
     const orgId = currentOrg.id;
 
     // View Logic
+    // View Logic
     if (orgType === "MASTER") {
         return (
             <div className="p-8">
@@ -61,6 +62,56 @@ export default async function DashboardPage() {
         return (
             <div className="p-8">
                 <ChildClientView organizationId={orgId} />
+            </div>
+        );
+    }
+
+    // NEW: Manager View
+    if (user.role === "MANAGER") {
+        const { getUsersByRole } = await import("@/lib/actions"); // Dynamic import to avoid circular dep if needed
+        const teamMembers = await getUsersByRole("ENTRY_OPERATOR");
+
+        const { ManagerView } = await import("@/components/dashboard/ManagerView");
+
+        return (
+            <div className="p-8">
+                <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900">Manager Dashboard</h1>
+                    <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold uppercase">Manager Mode</span>
+                </div>
+                <SupervisorStats organizationId={orgId} />
+                <div className="mt-8">
+                    <ManagerView teamMembers={teamMembers} />
+                </div>
+            </div>
+        );
+    }
+
+    // NEW: Operator View
+    if (user.role === "ENTRY_OPERATOR") {
+        const { getDocuments } = await import("@/lib/actions");
+        const { OperatorView } = await import("@/components/dashboard/OperatorView");
+
+        // Fetch Pools
+        const unclaimed = await getDocuments(undefined, "UPLOADED", undefined, true); // Unassigned
+        const myQueue = await getDocuments(undefined, "PROCESSING", user.id); // Assigned to me
+        const completed = await getDocuments(undefined, "COMPLETED", user.id); // Finished by me
+
+        return (
+            <div className="p-8">
+                <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900">Operator Workspace</h1>
+                    <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+                        <span className="text-sm text-slate-500 font-medium">Online</span>
+                    </div>
+                </div>
+                <OperatorView
+                    unclaimedDocs={unclaimed}
+                    myQueueDocs={myQueue}
+                    completedDocs={completed}
+                    currentUser={user}
+                />
             </div>
         );
     }

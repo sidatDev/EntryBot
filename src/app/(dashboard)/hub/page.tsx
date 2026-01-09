@@ -1,4 +1,3 @@
-// ... imports
 import { getMyOrganizations } from "@/lib/actions/organization";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -9,6 +8,7 @@ import { Building, FileText, Upload, Play, Clock, CheckCircle } from "lucide-rea
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { CreateOrgModal } from "@/components/organizations/CreateOrgModal";
+import { ClientUploadWrapper } from "@/components/dashboard/ClientUploadWrapper";
 
 export default async function HubPage() {
     const session = await getServerSession(authOptions);
@@ -73,22 +73,70 @@ export default async function HubPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white border-none shadow-lg">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center text-lg font-medium opacity-90">
-                            <Upload className="mr-2 h-5 w-5" />
-                            Quick Upload
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-indigo-100 text-sm mb-4">Upload new documents for processing immediately.</p>
-                        <Button variant="secondary" className="w-full bg-white text-indigo-600 hover:bg-auth-50">
-                            Select File
-                        </Button>
-                    </CardContent>
-                </Card>
+            <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <Upload className="mr-2 h-5 w-5 text-gray-500" />
+                    Quick Upload
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Invoice Upload */}
+                    <Card className="bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                        <CardHeader className="pb-3 pt-5">
+                            <CardTitle className="text-md font-medium text-slate-800 flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-indigo-500" />
+                                Purchase Invoices
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="mb-4 text-xs text-slate-500">
+                                Upload bills, receipts, and purchase orders.
+                            </div>
+                            <div className="w-full">
+                                <ClientUploadWrapper category="GENERAL" label="Upload Invoices" />
+                            </div>
+                        </CardContent>
+                    </Card>
 
+                    {/* Bank Statement Upload */}
+                    <Card className="bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                        <CardHeader className="pb-3 pt-5">
+                            <CardTitle className="text-md font-medium text-slate-800 flex items-center gap-2">
+                                <Building className="h-5 w-5 text-amber-500" />
+                                Bank Statements
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="mb-4 text-xs text-slate-500">
+                                Upload PDF or Excel bank/card statements.
+                            </div>
+                            <div className="w-full">
+                                <ClientUploadWrapper category="STATEMENT" label="Upload Statements" />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Other Documents Upload */}
+                    <Card className="bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                        <CardHeader className="pb-3 pt-5">
+                            <CardTitle className="text-md font-medium text-slate-800 flex items-center gap-2">
+                                <Upload className="h-5 w-5 text-blue-500" />
+                                Other Documents
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="mb-4 text-xs text-slate-500">
+                                Upload Identity Cards and other docs.
+                            </div>
+                            <div className="w-full">
+                                <ClientUploadWrapper category="OTHER" label="Upload Others" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            {/* Stats Row: Queue & Efficiency */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg font-medium text-gray-700">Your Queue</CardTitle>
@@ -221,6 +269,6 @@ export default async function HubPage() {
                     </table>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

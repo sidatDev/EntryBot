@@ -7,13 +7,16 @@ import { UploadZone } from "./UploadZone";
 
 interface UploadModalProps {
     category?: string;
+    label?: string;
 }
 
-export function UploadModal({ category = "SALES_INVOICE" }: UploadModalProps) {
+export function UploadModal({ category = "SALES_INVOICE", label }: UploadModalProps) {
     const [isOpen, setIsOpen] = useState(false);
 
     // Determine button text based on category
     const getButtonText = () => {
+        if (label) return label; // Use custom label if provided
+
         switch (category) {
             case "SALES_INVOICE":
                 return "Upload Sales Invoice";
@@ -32,7 +35,7 @@ export function UploadModal({ category = "SALES_INVOICE" }: UploadModalProps) {
         <>
             <button
                 onClick={() => setIsOpen(true)}
-                className="justify-center mb-2 flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200"
+                className="w-full justify-center mb-0 flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200"
             >
                 <Upload className="h-4 w-4" />
                 {getButtonText()}

@@ -246,7 +246,7 @@ export async function getDocumentMetadata(documentId: string) {
 
 // --- DOCUMENTS ---
 
-export async function getDocuments(category?: string, status?: string, assignedToId?: string) {
+export async function getDocuments(category?: string, status?: string, assignedToId?: string, unassigned?: boolean) {
     const session = await getServerSession(authOptions);
     const userFn = session?.user;
 
@@ -254,13 +254,27 @@ export async function getDocuments(category?: string, status?: string, assignedT
         deletedAt: null,
     };
 
-    // ISOLATION: If not Admin/Manager, restrict to own documents
-    // Assuming 'ADMIN' and 'MANAGER' have global view.
-    if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
+    // ISOLATION: 
+    if (userFn?.role === "ENTRY_OPERATOR") {
+        // OPERATOR VIEW: See Unassigned (Pool) + Assigned to Me (Queue) + (Maybe my uploads if any)
+        // We use OR logic here. Since Prisma doesn't support complex OR at top level easily without full condition,
+        // we can conditionally build the filter.
+        // Actually, we can use OR.
+        where.OR = [
+            { assignedToId: null },
+            { assignedToId: userFn.id }
+        ];
+        // If specific status/category query conflicts, Prisma handles AND automatically with explicit fields.
+        // But wait, if they pass `unassigned=true` (assignedToId: null), it fits.
+        // If they pass `assignedToId=me`, it fits.
+        // If they pass NOTHING (Dashboard/List), they get Pool + Queue.
+    } else if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
+        // CLIENT/EMPLOYEE: Restrict to own documents
         where.uploaderId = userFn.id;
     }
 
     // Filter by category if provided
+
     if (category === "SALES_INVOICE") {
         where.category = "SALES_INVOICE";
     } else if (category === "PURCHASE_INVOICE") {
@@ -275,6 +289,8 @@ export async function getDocuments(category?: string, status?: string, assignedT
     // Filter by assignee
     if (assignedToId) {
         where.assignedToId = assignedToId;
+    } else if (unassigned) {
+        where.assignedToId = null;
     }
 
     return await prisma.document.findMany({
@@ -736,7 +752,12 @@ export async function getBankStatements(status?: string) {
     };
 
     // ISOLATION
-    if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
+    if (userFn?.role === "ENTRY_OPERATOR") {
+        whereClause.OR = [
+            { assignedToId: null },
+            { assignedToId: userFn.id }
+        ];
+    } else if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
         whereClause.uploaderId = userFn.id;
     }
 

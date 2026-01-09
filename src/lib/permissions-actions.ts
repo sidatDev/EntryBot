@@ -16,6 +16,7 @@ const ADMIN_PERMISSIONS = "*";
 
 // Default permissions for CLIENT role (SUBMITTER in DB)
 const CLIENT_PERMISSIONS: Permission[] = [
+    "hub.view", // Replaced dashboard.view with explicit hub view for clients
     "dashboard.view",
     "invoices.view",
     "invoices.upload",
@@ -29,6 +30,17 @@ const CLIENT_PERMISSIONS: Permission[] = [
 
 // Re-use Client permissions for Employees for now
 const EMPLOYEE_PERMISSIONS: Permission[] = [...CLIENT_PERMISSIONS];
+
+// Restricted permissions for Data Entry Operator
+const ENTRY_OPERATOR_PERMISSIONS: Permission[] = [
+    "dashboard.view", // Can see dashboard (Operator View)
+    "doc.process",    // Can process documents
+    "invoices.view",  // Can view invoice list (filtered to pool+queue)
+    "bank.view",      // Can view bank statement list (filtered to pool+queue)
+    "other.view",     // Can view other documents (filtered to pool+queue)
+    // NO upload, NO history, NO recycle bin, NO hub
+];
+
 
 /**
  * Get user permissions (SERVER ACTION)
@@ -83,6 +95,13 @@ export async function getUserPermissionsAction(userId: string): Promise<UserPerm
             return {
                 role: "EMPLOYEE",
                 permissions: EMPLOYEE_PERMISSIONS
+            };
+        }
+
+        if (user.role === "ENTRY_OPERATOR") {
+            return {
+                role: "ENTRY_OPERATOR",
+                permissions: ENTRY_OPERATOR_PERMISSIONS
             };
         }
 

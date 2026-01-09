@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Settings, LogOut, User, ShoppingCart, TrendingUp, History, Trash2, CreditCard, Files, Users, BookOpen, Percent, Shield, ChevronDown, Building } from "lucide-react";
+import { LayoutDashboard, FileText, Settings, LogOut, User, ShoppingCart, TrendingUp, History, Trash2, CreditCard, Files, Users, BookOpen, Percent, Shield, ChevronDown, Building, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
@@ -26,7 +26,9 @@ function getNavVisibility(permissions: UserPermissions) {
     // If admin, show everything
     if (permissions.role === "ADMIN" || permissions.permissions.includes(ADMIN_PERMISSIONS)) {
         return {
+            showHub: true,
             showDashboard: true,
+            showMyClaims: true,
             showInvoices: true,
             showBankStatements: true,
             showOtherDocuments: true,
@@ -41,9 +43,12 @@ function getNavVisibility(permissions: UserPermissions) {
     }
 
     return {
+        showHub: hasPermission(permissions, "hub.view"),
         showDashboard: hasPermission(permissions, "dashboard.view"),
+        showMyClaims: hasPermission(permissions, "doc.process"), // Operators have this
         showInvoices: hasPermission(permissions, "invoices.view"),
         showBankStatements: hasPermission(permissions, "bank.view"),
+
         showIdCards: hasPermission(permissions, "id_cards.view"),
         showOtherDocuments: hasPermission(permissions, "other.view"),
         showHistory: hasPermission(permissions, "history.view"),
@@ -61,13 +66,19 @@ const mainNavItems = [
         title: "The Hub",
         href: "/hub",
         icon: LayoutDashboard, // Or another icon resembling a command center
-        permissionKey: "showDashboard" // Everyone with dashboard access sees the hub? Or specific permission.
+        permissionKey: "showHub"
     },
     {
         title: "Dashboard",
         href: "/dashboard",
         icon: TrendingUp, // Identifying generic dashboard with graph icon
         permissionKey: "showDashboard"
+    },
+    {
+        title: "My Claimed Tasks",
+        href: "/my-claims",
+        icon: CheckSquare,
+        permissionKey: "showMyClaims"
     },
     {
         title: "Invoices & Receipts",
@@ -158,7 +169,9 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
     const pathname = usePathname();
     const { data: session } = useSession();
     const [navVisibility, setNavVisibility] = useState({
+        showHub: true,
         showDashboard: true,
+        showMyClaims: false,
         showInvoices: true,
         showBankStatements: true,
         showIdCards: true,
