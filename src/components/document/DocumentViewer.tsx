@@ -60,7 +60,7 @@ export function DocumentViewer({ url, type, secondUrl }: DocumentViewerProps) {
                     }}
                     className="shadow-xl bg-white flex flex-col gap-4 p-2 lg:p-4 m-auto origin-center"
                 >
-                    {type === "PDF" ? (
+                    {(type?.toUpperCase() === "PDF" || url?.split(/[?#]/)[0].toLowerCase().endsWith(".pdf")) ? (
                         <iframe
                             src={url}
                             className="w-full lg:w-[600px] h-[500px] lg:h-[800px] bg-white"

@@ -222,6 +222,7 @@ export async function getDocumentMetadata(documentId: string) {
             createdAt: true,
             url: true, // Need URL for double check
             uploaderId: true, // Need for check
+            assignedToId: true,
             user: {
                 select: { name: true }
             },
@@ -232,11 +233,10 @@ export async function getDocumentMetadata(documentId: string) {
     if (!doc) return null;
 
     // ISOLATION CHECK
-    // ISOLATION CHECK
     if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
         const canAccess =
             doc.uploaderId === userFn.id ||
-            (userFn.role === "ENTRY_OPERATOR" && doc.assignedToId === userFn.id); // Operator assigned
+            (userFn.role === "ENTRY_OPERATOR" && (doc.assignedToId === userFn.id || doc.assignedToId === null)); // Operator assigned or unassigned (preview)
 
         if (!canAccess) {
             console.error(`Unauthorized access attempt by ${userFn.email} on doc ${documentId}`);
