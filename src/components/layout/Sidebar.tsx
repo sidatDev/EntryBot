@@ -27,6 +27,7 @@ function getNavVisibility(permissions: UserPermissions) {
     if (permissions.role === "ADMIN" || permissions.permissions.includes(ADMIN_PERMISSIONS)) {
         return {
             showHub: true,
+            showTeam: true,
             showDashboard: true,
             showMyClaims: true,
             showInvoices: true,
@@ -44,6 +45,7 @@ function getNavVisibility(permissions: UserPermissions) {
 
     return {
         showHub: hasPermission(permissions, "hub.view"),
+        showTeam: hasPermission(permissions, "team.view"),
         showDashboard: hasPermission(permissions, "dashboard.view"),
         showMyClaims: hasPermission(permissions, "doc.process"), // Operators have this
         showInvoices: hasPermission(permissions, "invoices.view"),
@@ -67,6 +69,12 @@ const mainNavItems = [
         href: "/hub",
         icon: LayoutDashboard, // Or another icon resembling a command center
         permissionKey: "showHub"
+    },
+    {
+        title: "Team Oversight",
+        href: "/team",
+        icon: Users,
+        permissionKey: "showTeam"
     },
     {
         title: "Dashboard",
@@ -170,6 +178,7 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
     const { data: session } = useSession();
     const [navVisibility, setNavVisibility] = useState({
         showHub: true,
+        showTeam: false,
         showDashboard: true,
         showMyClaims: false,
         showInvoices: true,

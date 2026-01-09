@@ -249,7 +249,7 @@ export default async function HubPage() {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <Button asChild variant="outline" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Button asChild variant="outline" size="sm" className=" transition-opacity">
                                             <Link href={`/hub/${org.id}`}>
                                                 Open Workspace <CheckCircle className="ml-1 h-3 w-3" />
                                             </Link>

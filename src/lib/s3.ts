@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 
 const s3Client = new S3Client({
@@ -84,5 +85,27 @@ export async function getFileBufferFromS3(fileUrl: string): Promise<Buffer> {
     } catch (error) {
         console.error("Error getting file from S3:", error);
         throw new Error("Failed to retrieve file from S3");
+    }
+}
+
+export async function getPresignedUrl(fileUrl: string) {
+    try {
+        const url = new URL(fileUrl);
+        const pathParts = url.pathname.split('/');
+        // Format: /bucket/uploads/key
+        // slice(2) removes "" and "bucket"
+        const key = pathParts.slice(2).join('/');
+
+        if (!key) return fileUrl;
+
+        const command = new GetObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: key,
+        });
+
+        return await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    } catch (error) {
+        console.error("Error creating presigned URL:", error);
+        return fileUrl;
     }
 }

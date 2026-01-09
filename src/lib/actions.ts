@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { PDFDocument } from "pdf-lib";
 import { hash } from "bcryptjs";
-import { uploadToS3, deleteFromS3, getFileBufferFromS3 } from "./s3";
+import { uploadToS3, deleteFromS3, getFileBufferFromS3, getPresignedUrl } from "./s3";
 import { hasCredits, deductCredits } from "@/lib/billing";
 import { shouldFlagForQA } from "@/lib/utils";
 import { getServerSession } from "next-auth";
@@ -232,16 +232,22 @@ export async function getDocumentMetadata(documentId: string) {
     if (!doc) return null;
 
     // ISOLATION CHECK
+    // ISOLATION CHECK
     if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
-        // If user is not the uploader, denial of service (return null or throw)
-        if (doc.uploaderId !== userFn.id) {
-            // We could throw new Error("Unauthorized"), but returning null is safer for UI handling often
+        const canAccess =
+            doc.uploaderId === userFn.id ||
+            (userFn.role === "ENTRY_OPERATOR" && doc.assignedToId === userFn.id); // Operator assigned
+
+        if (!canAccess) {
             console.error(`Unauthorized access attempt by ${userFn.email} on doc ${documentId}`);
-            return null; // treat as not found
+            return null;
         }
     }
 
-    return doc;
+    // Generate signed URL
+    const signedUrl = await getPresignedUrl(doc.url);
+
+    return { ...doc, url: signedUrl };
 }
 
 // --- DOCUMENTS ---
@@ -1175,5 +1181,36 @@ export async function saveBankStatement(data: {
 
     revalidatePath(`/documents/${data.documentId}/process`);
     revalidatePath("/documents");
+}
+
+export async function getUsersByRole(role: string) {
+    const session = await getServerSession(authOptions);
+
+    // Basic authorization
+    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "MANAGER")) {
+        return [];
+    }
+
+    // Map the string role to the Enum if needed, or rely on Prisma to match string
+    // Prisma UserRole is an enum. passing string might work if it matches.
+    // However, role comes in as string. Open to "ENTRY_OPERATOR".
+
+    // Use 'as any' for role if strict typing issues, or assume valid input.
+    // Ideally use: where: { role: role as UserRole }
+
+    const users = await prisma.user.findMany({
+        where: {
+            role: role as any
+        },
+        include: {
+            assignedDocs: {
+                where: { status: "PROCESSING" },
+                select: { id: true, name: true, status: true }
+            }
+        },
+        orderBy: { name: 'asc' }
+    });
+
+    return users;
 }
 

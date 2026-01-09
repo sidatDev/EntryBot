@@ -35,7 +35,7 @@ export function UploadModal({ category = "SALES_INVOICE", label }: UploadModalPr
         <>
             <button
                 onClick={() => setIsOpen(true)}
-                className="w-full justify-center mb-0 flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200"
+                className="w-full max-w-[300px] justify-center mb-0 flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200"
             >
                 <Upload className="h-4 w-4" />
                 {getButtonText()}

@@ -105,6 +105,13 @@ export async function getUserPermissionsAction(userId: string): Promise<UserPerm
             };
         }
 
+        if (user.role === "MANAGER") {
+            return {
+                role: "MANAGER",
+                permissions: ["team.view"]
+            };
+        }
+
         return {
             role: user.role,
             permissions: CLIENT_PERMISSIONS
@@ -137,6 +144,7 @@ export async function getInitialRedirectPath(userId: string): Promise<string> {
 
     // 2. Check permissions in priority order
     if (permissions.includes("dashboard.view")) return "/dashboard";
+    if (permissions.includes("team.view")) return "/team";
     if (permissions.includes("invoices.view")) return "/documents?status=UPLOADED"; // or just /documents
     if (permissions.includes("bank.view")) return "/bank-statements";
     if (permissions.includes("id_cards.view")) return "/id-cards";

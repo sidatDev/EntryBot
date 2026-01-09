@@ -1,5 +1,4 @@
-"use client";
-
+import Link from "next/link";
 import { Users, FileText, CheckCircle, Clock } from "lucide-react";
 
 interface ManagerViewProps {
@@ -7,6 +6,8 @@ interface ManagerViewProps {
 }
 
 export function ManagerView({ teamMembers }: ManagerViewProps) {
+
+
     return (
         <div className="space-y-6">
             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -51,9 +52,12 @@ export function ManagerView({ teamMembers }: ManagerViewProps) {
                                 </div>
                             </div>
 
-                            <button className="w-full mt-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
-                                View Details
-                            </button>
+                            <Link
+                                href={`/team/${member.id}`}
+                                className="w-full mt-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors flex items-center justify-center"
+                            >
+                                View Assigned Documents
+                            </Link>
                         </div>
                     );
                 })}

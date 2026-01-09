@@ -15,6 +15,7 @@ interface DocumentListProps {
     isRecycleBin?: boolean;
     category?: string;
     currentUser?: any;
+    readOnly?: boolean;
 }
 
 const CATEGORY_OPTIONS = [
@@ -26,7 +27,7 @@ const CATEGORY_OPTIONS = [
 // const PAYMENT_METHODS = ["None", "Cash", "Bank Transfer", "Credit Card", "Debit Card", "Commonwealth Bank"]; 
 const PAYMENT_METHODS = ["None", "Cash", "Bank Transfer", "Credit Card", "Debit Card", "Commonwealth Bank"];
 
-export function DocumentList({ documents, isRecycleBin = false, category, currentUser }: DocumentListProps) {
+export function DocumentList({ documents, isRecycleBin = false, category, currentUser, readOnly = false }: DocumentListProps) {
     const router = useRouter();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -125,7 +126,8 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
             )}
 
             {/* Action Bar - Row 1 (Top Right Actions mostly in blueprint, but we structure for layout) */}
-            {!isRecycleBin && (
+            {/* Action Bar - Row 1 */}
+            {!readOnly && !isRecycleBin && (
                 <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-end gap-2 bg-white p-2 rounded-lg border border-slate-200">
                         <button
@@ -144,85 +146,81 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                             selectedIds={selectedIds}
                             onComplete={handleToolsComplete}
                         />
-                        {/* <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded text-sm font-medium hover:bg-blue-600">
-                            <Columns className="h-4 w-4" /> Columns
-                        </button>
-                        <button className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 rounded text-sm font-medium hover:bg-slate-200">
-                            <ArrowRightLeft className="h-4 w-4" /> Transfer
-                        </button> */}
                     </div>
                 </div>
             )}
 
             {/* Action Bar - Row 2 */}
-            <div className={`flex items-center gap-2 ${isRecycleBin ? 'bg-red-500' : 'bg-blue-500'} p-2 rounded-t-lg text-white`}>
-                {/* Replaced Add Files button with UploadModal trigger or integrated it */}
-                {/* Check upload permissions: Entry Operator cannot upload */}
-                {!isRecycleBin && currentUser?.role !== "ENTRY_OPERATOR" && <UploadModal category={uploadCategory} />}
-                {/* We can wrap UploadModal trigger here or custom button */}
-                {!isRecycleBin && (
-                    <>
+            {!readOnly && (
+                <div className={`flex items-center gap-2 ${isRecycleBin ? 'bg-red-500' : 'bg-blue-500'} p-2 rounded-t-lg text-white`}>
+                    {/* Replaced Add Files button with UploadModal trigger or integrated it */}
+                    {/* Check upload permissions: Entry Operator cannot upload */}
+                    {!isRecycleBin && currentUser?.role !== "ENTRY_OPERATOR" && <UploadModal category={uploadCategory} />}
+                    {/* We can wrap UploadModal trigger here or custom button */}
+                    {!isRecycleBin && (
+                        <>
+                            <button
+                                onClick={handleExport}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 rounded text-sm font-medium hover:bg-blue-700"
+                            >
+                                <Download className="h-4 w-4" /> Export CSV
+                            </button>
+                        </>
+                    )}
 
-
+                    {isRecycleBin && (
                         <button
-                            onClick={handleExport}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 rounded text-sm font-medium hover:bg-blue-700"
+                            onClick={handleRestore}
+                            disabled={selectedIds.length === 0}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm disabled:opacity-50"
                         >
-                            <Download className="h-4 w-4" /> Export CSV
+                            <RefreshCw className="h-4 w-4" /> Restore
                         </button>
-                    </>
-                )}
+                    )}
 
-                {isRecycleBin && (
                     <button
-                        onClick={handleRestore}
+                        onClick={() => router.refresh()}
+                        className={`flex items-center gap-2 px-3 py-1.5 ${isRecycleBin ? 'hover:bg-white/20' : 'hover:bg-blue-600'} rounded text-sm`}
+                        title="Refresh"
+                    >
+                        <RefreshCw className="h-4 w-4" /> Refresh
+                    </button>
+
+                    {!isRecycleBin && (
+                        <button
+                            className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-600 rounded text-sm"
+                            title="Filter"
+                        >
+                            <Filter className="h-4 w-4" /> Filter
+                        </button>
+                    )}
+
+                    <button
+                        onClick={handleDelete}
                         disabled={selectedIds.length === 0}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm disabled:opacity-50"
+                        className="flex items-center gap-2 px-3 py-1.5 hover:bg-red-700 rounded text-sm ml-auto disabled:opacity-50 disabled:hover:bg-transparent"
                     >
-                        <RefreshCw className="h-4 w-4" /> Restore
+                        <Trash2 className="h-4 w-4" /> {isRecycleBin ? "Delete Permanently" : "Delete"}
                     </button>
-                )}
+                </div>
+            )}
 
-                <button
-                    onClick={() => router.refresh()}
-                    className={`flex items-center gap-2 px-3 py-1.5 ${isRecycleBin ? 'hover:bg-white/20' : 'hover:bg-blue-600'} rounded text-sm`}
-                    title="Refresh"
-                >
-                    <RefreshCw className="h-4 w-4" /> Refresh
-                </button>
-
-                {!isRecycleBin && (
-                    <button
-                        className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-600 rounded text-sm"
-                        title="Filter"
-                    >
-                        <Filter className="h-4 w-4" /> Filter
-                    </button>
-                )}
-
-                <button
-                    onClick={handleDelete}
-                    disabled={selectedIds.length === 0}
-                    className="flex items-center gap-2 px-3 py-1.5 hover:bg-red-700 rounded text-sm ml-auto disabled:opacity-50 disabled:hover:bg-transparent"
-                >
-                    <Trash2 className="h-4 w-4" /> {isRecycleBin ? "Delete Permanently" : "Delete"}
-                </button>
-            </div>
-
-            <div className="bg-white rounded-b-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className={cn("bg-white border border-slate-200 shadow-sm overflow-hidden", readOnly ? "rounded-xl" : "rounded-b-xl")}>
                 <div className="overflow-x-auto min-h-[500px]">
                     <table className="w-full text-left text-sm">
                         <thead className={isRecycleBin ? "bg-red-500 text-white" : "bg-cyan-500 text-white"}>
                             <tr>
-                                <th className="px-4 py-3 w-10">
-                                    <button onClick={toggleAll} className="text-white hover:text-slate-100">
-                                        {selectedIds.length === documents.length && documents.length > 0 ? (
-                                            <CheckSquare className="h-5 w-5" />
-                                        ) : (
-                                            <Square className="h-5 w-5" />
-                                        )}
-                                    </button>
-                                </th>
+                                {!readOnly && (
+                                    <th className="px-4 py-3 w-10">
+                                        <button onClick={toggleAll} className="text-white hover:text-slate-100">
+                                            {selectedIds.length === documents.length && documents.length > 0 ? (
+                                                <CheckSquare className="h-5 w-5" />
+                                            ) : (
+                                                <Square className="h-5 w-5" />
+                                            )}
+                                        </button>
+                                    </th>
+                                )}
                                 <th className="px-4 py-3 font-semibold whitespace-nowrap">Doc ID</th>
                                 {category === "IDENTITY_CARD" ? (
                                     <>
@@ -244,7 +242,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
 
                                 <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Category</th>
                                 <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Approval</th>
-                                <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Actions</th>
+                                {!readOnly && <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Actions</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -263,18 +261,20 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
 
                                     return (
                                         <tr key={doc.id} className={cn("transition-colors", isSelected ? "bg-indigo-50/50" : "hover:bg-slate-50/50")}>
-                                            <td className="px-4 py-3">
-                                                <button
-                                                    onClick={() => toggleSelection(doc.id)}
-                                                    className="text-slate-400 hover:text-indigo-600"
-                                                >
-                                                    {isSelected ? (
-                                                        <CheckSquare className="h-5 w-5 text-indigo-600" />
-                                                    ) : (
-                                                        <Square className="h-5 w-5" />
-                                                    )}
-                                                </button>
-                                            </td>
+                                            {!readOnly && (
+                                                <td className="px-4 py-3">
+                                                    <button
+                                                        onClick={() => toggleSelection(doc.id)}
+                                                        className="text-slate-400 hover:text-indigo-600"
+                                                    >
+                                                        {isSelected ? (
+                                                            <CheckSquare className="h-5 w-5 text-indigo-600" />
+                                                        ) : (
+                                                            <Square className="h-5 w-5" />
+                                                        )}
+                                                    </button>
+                                                </td>
+                                            )}
                                             <td className="px-4 py-3 font-mono text-xs text-slate-500">
                                                 {doc.id.slice(-6)}
                                             </td>
@@ -326,7 +326,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                                     className="w-full text-xs border-slate-200 rounded px-2 py-1 bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                                     value={doc.category || "OTHER"} // Handle null category
                                                     onChange={(e) => handleInlineCategoryChange(doc.id, e.target.value)}
-                                                    disabled={isRecycleBin || currentUser?.id !== doc.uploaderId}
+                                                    disabled={readOnly || isRecycleBin || currentUser?.id !== doc.uploaderId}
                                                 >
                                                     {CATEGORY_OPTIONS.map(opt => (
                                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -351,7 +351,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                                         <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-700 mr-2">
                                                             Pending
                                                         </span>
-                                                        {currentUser?.id === doc.uploaderId && (
+                                                        {!readOnly && currentUser?.id === doc.uploaderId && (
                                                             <>
                                                                 <button
                                                                     onClick={() => updateApprovalStatus(doc.id, "APPROVED")}
@@ -372,47 +372,49 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    {/* Claim Button for Operators */}
-                                                    {!isRecycleBin && !doc.assignedToId && currentUser?.role === "ENTRY_OPERATOR" && (
-                                                        <button
-                                                            onClick={async () => {
-                                                                await assignDocumentToMe(doc.id);
-                                                                showNotification("Document claimed!", "success");
-                                                                router.refresh();
-                                                            }}
-                                                            className="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-xs font-semibold flex items-center gap-1"
-                                                        >
-                                                            <CheckSquare className="h-3 w-3" /> Claim
-                                                        </button>
-                                                    )}
-
-                                                    {!isRecycleBin && (doc.assignedToId === currentUser?.id || currentUser?.role !== "ENTRY_OPERATOR") && (
-                                                        <>
-                                                            <Link
-                                                                href={`/documents/${doc.id}/process`}
-                                                                className="px-3 py-1 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 text-xs font-semibold flex items-center gap-1"
+                                            {!readOnly && (
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {/* Claim Button for Operators */}
+                                                        {!isRecycleBin && !doc.assignedToId && currentUser?.role === "ENTRY_OPERATOR" && (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    await assignDocumentToMe(doc.id);
+                                                                    showNotification("Document claimed!", "success");
+                                                                    router.refresh();
+                                                                }}
+                                                                className="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-xs font-semibold flex items-center gap-1"
                                                             >
-                                                                <Edit className="h-3 w-3" /> Process
-                                                            </Link>
-                                                        </>
-                                                    )}
-                                                    {isRecycleBin ? (
-                                                        <button
-                                                            className="text-slate-400 hover:text-green-500"
-                                                            title="Restore"
-                                                            onClick={() => restoreDocument(doc.id)}
-                                                        >
-                                                            <RefreshCw className="h-4 w-4" />
-                                                        </button>
-                                                    ) : (
-                                                        <button className="text-slate-400 hover:text-red-500">
-                                                            <Trash2 className="h-4 w-4" onClick={() => softDeleteDocument(doc.id)} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
+                                                                <CheckSquare className="h-3 w-3" /> Claim
+                                                            </button>
+                                                        )}
+
+                                                        {!isRecycleBin && (doc.assignedToId === currentUser?.id || currentUser?.role !== "ENTRY_OPERATOR") && (
+                                                            <>
+                                                                <Link
+                                                                    href={`/documents/${doc.id}/process`}
+                                                                    className="px-3 py-1 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 text-xs font-semibold flex items-center gap-1"
+                                                                >
+                                                                    <Edit className="h-3 w-3" /> Process
+                                                                </Link>
+                                                            </>
+                                                        )}
+                                                        {isRecycleBin ? (
+                                                            <button
+                                                                className="text-slate-400 hover:text-green-500"
+                                                                title="Restore"
+                                                                onClick={() => restoreDocument(doc.id)}
+                                                            >
+                                                                <RefreshCw className="h-4 w-4" />
+                                                            </button>
+                                                        ) : (
+                                                            <button className="text-slate-400 hover:text-red-500">
+                                                                <Trash2 className="h-4 w-4" onClick={() => softDeleteDocument(doc.id)} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     );
                                 })
@@ -443,7 +445,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                 </div>
             </div>
 
-            {!isRecycleBin && <PdfTools selectedIds={selectedIds} onComplete={handleToolsComplete} />}
+            {!isRecycleBin && !readOnly && <PdfTools selectedIds={selectedIds} onComplete={handleToolsComplete} />}
         </div>
     );
 }
