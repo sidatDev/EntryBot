@@ -18,21 +18,21 @@ export function OperatorView({ unclaimedDocs, myQueueDocs, completedDocs, curren
     return (
         <div className="space-y-6">
             {/* Header / Stats */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <button
                     onClick={() => setActiveTab("pool")}
-                    className={`p-4 rounded-xl border text-left transition-all ${activeTab === "pool" ? "bg-indigo-50 border-indigo-200 ring-2 ring-indigo-500/20" : "bg-white border-slate-200 hover:border-indigo-200"}`}
+                    className={`p-4 rounded-xl border text-left transition-all ${activeTab === "pool" ? "bg-amber-50 border-amber-200 ring-2 ring-amber-500/20" : "bg-white border-slate-200 hover:border-amber-200"}`}
                 >
                     <div className="text-sm text-slate-500 font-medium">Unclaimed Pool</div>
                     <div className="text-2xl font-bold text-slate-800">{unclaimedDocs.length}</div>
-                    <div className="text-xs text-indigo-600 mt-1 font-medium">Action Required</div>
+                    <div className="text-xs text-amber-600 mt-1 font-medium">Ready to Claim</div>
                 </button>
 
                 <button
                     onClick={() => setActiveTab("queue")}
                     className={`p-4 rounded-xl border text-left transition-all ${activeTab === "queue" ? "bg-blue-50 border-blue-200 ring-2 ring-blue-500/20" : "bg-white border-slate-200 hover:border-blue-200"}`}
                 >
-                    <div className="text-sm text-slate-500 font-medium">My Queue</div>
+                    <div className="text-sm text-slate-500 font-medium">My Active Tasks (Claimed)</div>
                     <div className="text-2xl font-bold text-slate-800">{myQueueDocs.length}</div>
                     <div className="text-xs text-blue-600 mt-1 font-medium">In Progress</div>
                 </button>
@@ -41,9 +41,22 @@ export function OperatorView({ unclaimedDocs, myQueueDocs, completedDocs, curren
                     onClick={() => setActiveTab("completed")}
                     className={`p-4 rounded-xl border text-left transition-all ${activeTab === "completed" ? "bg-green-50 border-green-200 ring-2 ring-green-500/20" : "bg-white border-slate-200 hover:border-green-200"}`}
                 >
-                    <div className="text-sm text-slate-500 font-medium">Completed Today</div>
-                    <div className="text-2xl font-bold text-slate-800">{completedDocs.length}</div>
-                    <div className="text-xs text-green-600 mt-1 font-medium">Good Job!</div>
+                    <div className="text-sm text-slate-500 font-medium">Approved</div>
+                    <div className="text-2xl font-bold text-slate-800">
+                        {completedDocs.filter(d => d.approvalStatus === "APPROVED").length}
+                    </div>
+                    <div className="text-xs text-green-600 mt-1 font-medium">Successfully Processed</div>
+                </button>
+
+                <button
+                    onClick={() => setActiveTab("completed")}
+                    className={`p-4 rounded-xl border text-left transition-all ${activeTab === "completed" ? "bg-red-50 border-red-200 ring-2 ring-red-500/20" : "bg-white border-slate-200 hover:border-red-200"}`}
+                >
+                    <div className="text-sm text-slate-500 font-medium">Denied / Errors</div>
+                    <div className="text-2xl font-bold text-slate-800">
+                        {completedDocs.filter(d => d.approvalStatus === "DENIED").length}
+                    </div>
+                    <div className="text-xs text-red-600 mt-1 font-medium">Requires Attention</div>
                 </button>
             </div>
 

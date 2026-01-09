@@ -32,7 +32,7 @@ export function BankStatementList({ documents, isRecycleBin = false }: BankState
             {/* Action Bar */}
             <div className="p-4 border-b border-slate-100 space-y-4">
                 {/* Row 1: High Level Actions & Search */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
                         <UploadModal category="STATEMENT" />
                         <button className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
@@ -40,11 +40,14 @@ export function BankStatementList({ documents, isRecycleBin = false }: BankState
                             Add Payment Method
                         </button>
                     </div>
-                </div>
+                </div> */}
 
                 {/* Row 2: Bulk & Filters */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                            <UploadModal category="STATEMENT" />
+                        </div>
                         <button className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
                             Bulk Download
                         </button>

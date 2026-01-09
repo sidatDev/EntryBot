@@ -23,6 +23,37 @@ export default async function DashboardPage() {
         }
     });
 
+    // NEW: Operator View (Prioritize over Org Check)
+    if (user?.role === "ENTRY_OPERATOR") {
+        const { getDocuments } = await import("@/lib/actions");
+        const { OperatorView } = await import("@/components/dashboard/OperatorView");
+
+        // Fetch Pools
+        const unclaimed = await getDocuments(undefined, "UPLOADED", undefined, true); // Unassigned
+        // Note: for myQueue and completed, we pass user.id. 
+        // getDocuments expects string | undefined. user.id is string.
+        const myQueue = await getDocuments(undefined, "PROCESSING", user.id);
+        const completed = await getDocuments(undefined, "COMPLETED", user.id);
+
+        return (
+            <div className="p-8">
+                <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900">Operator Workspace</h1>
+                    <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+                        <span className="text-sm text-slate-500 font-medium">Online</span>
+                    </div>
+                </div>
+                <OperatorView
+                    unclaimedDocs={unclaimed}
+                    myQueueDocs={myQueue}
+                    completedDocs={completed}
+                    currentUser={user}
+                />
+            </div>
+        );
+    }
+
     // Fallback: If user has no current org but owns some, switch context to first owned one
     let currentOrg = user?.organization;
     if (!currentOrg && user?.ownedOrganizations && user.ownedOrganizations.length > 0) {
@@ -87,34 +118,7 @@ export default async function DashboardPage() {
         );
     }
 
-    // NEW: Operator View
-    if (user.role === "ENTRY_OPERATOR") {
-        const { getDocuments } = await import("@/lib/actions");
-        const { OperatorView } = await import("@/components/dashboard/OperatorView");
 
-        // Fetch Pools
-        const unclaimed = await getDocuments(undefined, "UPLOADED", undefined, true); // Unassigned
-        const myQueue = await getDocuments(undefined, "PROCESSING", user.id); // Assigned to me
-        const completed = await getDocuments(undefined, "COMPLETED", user.id); // Finished by me
-
-        return (
-            <div className="p-8">
-                <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Operator Workspace</h1>
-                    <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <span className="text-sm text-slate-500 font-medium">Online</span>
-                    </div>
-                </div>
-                <OperatorView
-                    unclaimedDocs={unclaimed}
-                    myQueueDocs={myQueue}
-                    completedDocs={completed}
-                    currentUser={user}
-                />
-            </div>
-        );
-    }
 
     // Default: INTERNAL / Admin View (Existing Dashboard)
     const stats = await getDashboardStats();
