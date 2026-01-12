@@ -1233,3 +1233,115 @@ export async function getUsersByRole(role: string) {
     return users;
 }
 
+/* -------------------------------------------------------------------------- */
+/*                            EXPENSE REPORTS                                 */
+/* -------------------------------------------------------------------------- */
+
+export async function getExpenseReport(
+    organizationId: string,
+    viewType: "monthly" | "annual" = "annual",
+    year?: number,
+    month?: number
+) {
+    const currentYear = year || new Date().getFullYear();
+    const currentMonth = month || new Date().getMonth() + 1;
+
+    // Build date filter based on view type
+    let startDate: Date;
+    let endDate: Date;
+
+    if (viewType === "monthly") {
+        // Get specific month
+        startDate = new Date(currentYear, currentMonth - 1, 1);
+        endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59);
+    } else {
+        // Get full year
+        startDate = new Date(currentYear, 0, 1);
+        endDate = new Date(currentYear, 11, 31, 23, 59, 59);
+    }
+
+    // Fetch purchase invoices for the organization
+    const invoices = await prisma.invoice.findMany({
+        where: {
+            document: {
+                organizationId: organizationId,
+                category: "PURCHASE_INVOICE",
+                status: "COMPLETED",
+                approvalStatus: "APPROVED",
+            },
+            date: {
+                gte: startDate,
+                lte: endDate,
+            },
+        },
+        select: {
+            id: true,
+            date: true,
+            supplierName: true,
+            baseCurrencyAmount: true,
+            invoiceNumber: true,
+            totalAmount: true,
+            currency: true,
+        },
+        orderBy: {
+            date: "asc",
+        },
+    });
+
+    // Calculate totals
+    const totalExpenses = invoices.reduce((sum, inv) => sum + (inv.baseCurrencyAmount || 0), 0);
+
+    // Group by month for annual view
+    const monthlyBreakdown: { [key: string]: { total: number; count: number; invoices: any[] } } = {};
+
+    if (viewType === "annual") {
+        for (let m = 0; m < 12; m++) {
+            const monthKey = new Date(currentYear, m, 1).toISOString().slice(0, 7); // YYYY-MM
+            monthlyBreakdown[monthKey] = { total: 0, count: 0, invoices: [] };
+        }
+    }
+
+    invoices.forEach((inv) => {
+        const monthKey = inv.date.toISOString().slice(0, 7);
+        if (!monthlyBreakdown[monthKey]) {
+            monthlyBreakdown[monthKey] = { total: 0, count: 0, invoices: [] };
+        }
+        monthlyBreakdown[monthKey].total += inv.baseCurrencyAmount || 0;
+        monthlyBreakdown[monthKey].count += 1;
+        monthlyBreakdown[monthKey].invoices.push(inv);
+    });
+
+    // Group by supplier
+    const supplierBreakdown: { [key: string]: { total: number; count: number } } = {};
+    invoices.forEach((inv) => {
+        const supplier = inv.supplierName || "Unknown";
+        if (!supplierBreakdown[supplier]) {
+            supplierBreakdown[supplier] = { total: 0, count: 0 };
+        }
+        supplierBreakdown[supplier].total += inv.baseCurrencyAmount || 0;
+        supplierBreakdown[supplier].count += 1;
+    });
+
+    // Sort suppliers by total
+    const topSuppliers = Object.entries(supplierBreakdown)
+        .map(([name, data]) => ({ name, ...data }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 10);
+
+    return {
+        viewType,
+        period: viewType === "monthly"
+            ? `${new Date(currentYear, currentMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+            : `${currentYear}`,
+        totalExpenses,
+        invoiceCount: invoices.length,
+        averageInvoice: invoices.length > 0 ? totalExpenses / invoices.length : 0,
+        monthlyBreakdown: Object.entries(monthlyBreakdown).map(([month, data]) => ({
+            month,
+            total: data.total,
+            count: data.count,
+        })),
+        topSuppliers,
+        invoices: viewType === "monthly" ? invoices : [], // Include full invoice list for monthly view
+    };
+}

@@ -1,6 +1,8 @@
 import { getBankStatements } from "@/lib/actions";
 import { BankStatementList } from "@/components/documents/BankStatementList";
 import { StatusTabs } from "@/components/documents/StatusTabs";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export default async function BankStatementsPage({
     searchParams,
@@ -9,6 +11,7 @@ export default async function BankStatementsPage({
 }) {
     const { status = "ALL" } = await searchParams;
     const documents = await getBankStatements(status);
+    const session = await getServerSession(authOptions);
 
     return (
         <div className="space-y-6">
@@ -18,7 +21,7 @@ export default async function BankStatementsPage({
             </div>
 
             <StatusTabs />
-            <BankStatementList documents={documents} />
+            <BankStatementList documents={documents} currentUser={session?.user} />
         </div>
     );
 }

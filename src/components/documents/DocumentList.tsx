@@ -451,9 +451,11 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                                                     <RefreshCw className="h-4 w-4" />
                                                                 </button>
                                                             ) : (
-                                                                <button className="text-slate-400 hover:text-red-500">
-                                                                    <Trash2 className="h-4 w-4" onClick={() => softDeleteDocument(doc.id)} />
-                                                                </button>
+                                                                currentUser?.id === doc.uploaderId && (
+                                                                    <button className="text-slate-400 hover:text-red-500" title="Delete">
+                                                                        <Trash2 className="h-4 w-4" onClick={() => softDeleteDocument(doc.id)} />
+                                                                    </button>
+                                                                )
                                                             )
                                                         }
                                                     </div >
