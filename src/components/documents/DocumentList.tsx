@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Calendar, ArrowRight, CheckSquare, Square, Download, RefreshCw, Filter, Trash2, Edit, Columns, ArrowRightLeft, FilePlus, Check, X } from "lucide-react";
+import { FileText, Calendar, ArrowRight, CheckSquare, Square, Download, RefreshCw, Filter, Trash2, Edit, Columns, ArrowRightLeft, FilePlus, Check, X, MessageSquare, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { PdfTools } from "@/components/tools/PdfTools";
@@ -32,6 +32,29 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [itemsPerPage, setItemsPerPage] = useState(25);
     const [notification, setNotification] = useState<{ message: string; type: "success" | "info" } | null>(null);
+
+    // Rejection Modal State
+    const [rejectModalOpen, setRejectModalOpen] = useState(false);
+    const [rejectDocId, setRejectDocId] = useState<string | null>(null);
+    const [rejectReason, setRejectReason] = useState("");
+    const [rejectError, setRejectError] = useState("");
+
+    // View Rejection Reason Modal State
+    const [viewReasonModalOpen, setViewReasonModalOpen] = useState(false);
+    const [viewReasonText, setViewReasonText] = useState("");
+
+    const handleRejectSubmit = async () => {
+        if (!rejectDocId) return;
+        if (!rejectReason.trim()) {
+            setRejectError("Reason is required");
+            return;
+        }
+
+        await updateApprovalStatus(rejectDocId, "DENIED", rejectReason);
+        setRejectModalOpen(false);
+        setRejectReason("");
+        setRejectDocId(null);
+    };
 
     const uploadCategory = category === "SALES_INVOICE"
         ? "SALES_INVOICE"
@@ -82,7 +105,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
     };
 
     const handleDelete = async () => {
-        if (!confirm(`${isRecycleBin ? "Permanently delete" : "Delete"} ${selectedIds.length} documents?`)) return;
+        if (!confirm(`${isRecycleBin ? "Permanently delete" : "Delete"} ${selectedIds.length} documents ? `)) return;
 
         for (const id of selectedIds) {
             if (isRecycleBin) {
@@ -109,7 +132,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `invoices-${Date.now()}.csv`;
+        a.download = `invoices - ${Date.now()}.csv`;
         a.click();
     };
 
@@ -132,7 +155,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                     <div className="flex items-center justify-end gap-2 bg-white p-2 rounded-lg border border-slate-200">
                         <button
                             onClick={async () => {
-                                if (confirm(`Approve ${selectedIds.length} documents?`)) {
+                                if (confirm(`Approve ${selectedIds.length} documents ? `)) {
                                     await bulkApproveDocuments(selectedIds);
                                     setSelectedIds([]);
                                 }
@@ -180,7 +203,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
 
                     <button
                         onClick={() => router.refresh()}
-                        className={`flex items-center gap-2 px-3 py-1.5 ${isRecycleBin ? 'hover:bg-white/20' : 'hover:bg-blue-600'} rounded text-sm`}
+                        className={`flex items - center gap - 2 px - 3 py - 1.5 ${isRecycleBin ? 'hover:bg-white/20' : 'hover:bg-blue-600'} rounded text - sm`}
                         title="Refresh"
                     >
                         <RefreshCw className="h-4 w-4" /> Refresh
@@ -342,9 +365,23 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                                     </span>
                                                 )}
                                                 {doc.approvalStatus === "DENIED" && (
-                                                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-700">
-                                                        Denied
-                                                    </span>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-700">
+                                                            Denied
+                                                        </span>
+                                                        {(doc as any).rejectionReason && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setViewReasonText((doc as any).rejectionReason);
+                                                                    setViewReasonModalOpen(true);
+                                                                }}
+                                                                className="p-1 hover:bg-red-50 rounded transition-colors"
+                                                                title="View rejection reason"
+                                                            >
+                                                                <MessageSquare className="h-4 w-4 text-red-400" />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 )}
                                                 {(!doc.approvalStatus || doc.approvalStatus === "PENDING") && (
                                                     <div className="flex items-center justify-center gap-1">
@@ -361,7 +398,12 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                                                     <Check className="h-4 w-4" />
                                                                 </button>
                                                                 <button
-                                                                    onClick={() => updateApprovalStatus(doc.id, "DENIED")}
+                                                                    onClick={() => {
+                                                                        setRejectDocId(doc.id);
+                                                                        setRejectModalOpen(true);
+                                                                        setRejectReason("");
+                                                                        setRejectError("");
+                                                                    }}
                                                                     className="p-1 hover:bg-red-100 text-red-600 rounded transition-colors"
                                                                     title="Deny"
                                                                 >
@@ -395,36 +437,38 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                                                     href={`/documents/${doc.id}/process`}
                                                                     className="px-3 py-1 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 text-xs font-semibold flex items-center gap-1"
                                                                 >
-                                                                    <Edit className="h-3 w-3" /> Process
-                                                                </Link>
+                                                                    <Edit className="h-3 w-3" /> View
+                                                                </Link >
                                                             </>
                                                         )}
-                                                        {isRecycleBin ? (
-                                                            <button
-                                                                className="text-slate-400 hover:text-green-500"
-                                                                title="Restore"
-                                                                onClick={() => restoreDocument(doc.id)}
-                                                            >
-                                                                <RefreshCw className="h-4 w-4" />
-                                                            </button>
-                                                        ) : (
-                                                            <button className="text-slate-400 hover:text-red-500">
-                                                                <Trash2 className="h-4 w-4" onClick={() => softDeleteDocument(doc.id)} />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </td>
+                                                        {
+                                                            isRecycleBin ? (
+                                                                <button
+                                                                    className="text-slate-400 hover:text-green-500"
+                                                                    title="Restore"
+                                                                    onClick={() => restoreDocument(doc.id)}
+                                                                >
+                                                                    <RefreshCw className="h-4 w-4" />
+                                                                </button>
+                                                            ) : (
+                                                                <button className="text-slate-400 hover:text-red-500">
+                                                                    <Trash2 className="h-4 w-4" onClick={() => softDeleteDocument(doc.id)} />
+                                                                </button>
+                                                            )
+                                                        }
+                                                    </div >
+                                                </td >
                                             )}
-                                        </tr>
+                                        </tr >
                                     );
                                 })
                             )}
-                        </tbody>
-                    </table>
-                </div>
+                        </tbody >
+                    </table >
+                </div >
 
                 {/* Pagination */}
-                <div className="p-4 border-t border-slate-100 flex items-center justify-between">
+                < div className="p-4 border-t border-slate-100 flex items-center justify-between" >
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-slate-500">Show</span>
                         <select
@@ -442,10 +486,98 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                         {/* Pagination controls placeholder */}
                         Showing 1 to {Math.min(itemsPerPage, documents.length)} of {documents.length} entries
                     </div>
-                </div>
-            </div>
+                </div >
+            </div >
 
             {!isRecycleBin && !readOnly && <PdfTools selectedIds={selectedIds} onComplete={handleToolsComplete} />}
+
+            {/* View Rejection Reason Modal */}
+            {viewReasonModalOpen && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-start justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                                <MessageSquare className="h-5 w-5 text-red-500" />
+                                Rejection Reason
+                            </h3>
+                            <button onClick={() => setViewReasonModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <p className="text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed">
+                                {viewReasonText}
+                            </p>
+                        </div>
+
+                        <div className="flex justify-end mt-4">
+                            <button
+                                onClick={() => setViewReasonModalOpen(false)}
+                                className="px-4 py-2 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Rejection Modal */}
+            {rejectModalOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-start justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                                <AlertCircle className="h-5 w-5 text-red-500" />
+                                Reject Document
+                            </h3>
+                            <button onClick={() => setRejectModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <p className="text-sm text-slate-500 mb-4">
+                            Please provide a valid reason for rejecting this document.
+                            <br />
+                            <span className="text-xs text-slate-400">This information will be sent to the operator.</span>
+                        </p>
+
+                        <textarea
+                            className="w-full border border-slate-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none mb-2 min-h-[100px]"
+                            placeholder="Reason for rejection (Required)..."
+                            value={rejectReason}
+                            onChange={(e) => {
+                                setRejectReason(e.target.value);
+                                if (e.target.value.trim()) setRejectError("");
+                            }}
+                            autoFocus
+                        />
+
+                        {rejectError && (
+                            <div className="flex items-center gap-1 text-xs text-red-600 mb-4 font-medium">
+                                <AlertCircle className="h-3 w-3" /> {rejectError}
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-3 mt-4">
+                            <button
+                                onClick={() => setRejectModalOpen(false)}
+                                className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleRejectSubmit}
+                                disabled={!rejectReason.trim()}
+                                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm"
+                            >
+                                Confirm Rejection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

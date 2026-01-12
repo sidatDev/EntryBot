@@ -36,10 +36,9 @@ export default async function OperatorDetailPage({ params }: PageProps) {
 
     // Fetch Documents assigned to this operator
     // reusing getDocuments(category, status, assignedToId)
-    // We want ALL assigned documents (Processing, Completed?) 
-    // Usually "Processing" is the active queue. Let's show Processing by default, maybe others.
-    // For now, let's fetch 'PROCESSING' as the main queue.
-    const assignedDocs = await getDocuments(undefined, "PROCESSING", operatorId);
+    // We want ALL assigned documents (Processing, Completed, Denied, etc.)
+    // Showing all documents assigned to the operator, regardless of status.
+    const assignedDocs = await getDocuments(undefined, undefined, operatorId);
 
     return (
         <div className="p-8">

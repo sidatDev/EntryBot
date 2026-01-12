@@ -17,7 +17,7 @@ const ADMIN_PERMISSIONS = "*";
 // Default permissions for CLIENT role (SUBMITTER in DB)
 const CLIENT_PERMISSIONS: Permission[] = [
     "hub.view", // Replaced dashboard.view with explicit hub view for clients
-    "dashboard.view",
+    // "dashboard.view", // Removed for clients
     "invoices.view",
     "invoices.upload",
     "bank.view",
@@ -122,10 +122,6 @@ export async function getUserPermissionsAction(userId: string): Promise<UserPerm
             role: "SUBMITTER",
             permissions: CLIENT_PERMISSIONS
         };
-        return {
-            role: "SUBMITTER",
-            permissions: CLIENT_PERMISSIONS
-        };
     }
 }
 
@@ -139,10 +135,11 @@ export async function getInitialRedirectPath(userId: string): Promise<string> {
 
     // 1. Admin always goes to dashboard (or hub if enabled, but dashboard is safe)
     if (role === "ADMIN" || permissions.includes(ADMIN_PERMISSIONS)) {
-        return "/dashboard";
+        return "/dashboard"; // Admin still goes to generic dashboard
     }
 
     // 2. Check permissions in priority order
+    if (permissions.includes("hub.view")) return "/hub"; // Clients go to Hub
     if (permissions.includes("dashboard.view")) return "/dashboard";
     if (permissions.includes("team.view")) return "/team";
     if (permissions.includes("invoices.view")) return "/documents?status=UPLOADED"; // or just /documents

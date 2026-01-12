@@ -136,7 +136,7 @@ export default async function HubPage() {
             </div>
 
             {/* Stats Row: Queue & Efficiency */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg font-medium text-gray-700">Your Queue</CardTitle>
@@ -179,7 +179,7 @@ export default async function HubPage() {
                         </div>
                     </CardContent>
                 </Card>
-            </div>
+            </div> */}
 
             {/* Client Selection / Active Workspaces */}
             <div>

@@ -19,6 +19,7 @@ model Document {
   
   status        String   @default("PENDING") // PENDING, PROCESSING, REVIEW_REQUIRED, COMPLETED
   approvalStatus String? @default("PENDING") // PENDING, APPROVED, REJECTED
+  rejectionReason String? // Reason for rejection
   extractedText String?  @db.Text
   
   // New: Categorization

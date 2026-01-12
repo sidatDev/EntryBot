@@ -15,7 +15,16 @@ const s3Client = new S3Client({
 const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME || "entrybot-uploads";
 
 export async function uploadToS3(file: Buffer, fileName: string, contentType: string) {
-    const key = `uploads/${Date.now()}-${fileName}`;
+    // Sanitize filename: replace spaces and special chars with hyphens, remove problematic characters
+    const sanitizedFileName = fileName
+        .replace(/\s+/g, '-')           // Replace spaces with hyphens
+        .replace(/[()[\]{}]/g, '')      // Remove parentheses and brackets
+        .replace(/['"]/g, '')           // Remove quotes
+        .replace(/[|\\]/g, '-')         // Replace pipes and backslashes with hyphens
+        .replace(/--+/g, '-')           // Replace multiple consecutive hyphens with single hyphen
+        .replace(/^-+|-+$/g, '');       // Remove leading/trailing hyphens
+
+    const key = `uploads/${Date.now()}-${sanitizedFileName}`;
 
     const command = new PutObjectCommand({
         Bucket: BUCKET_NAME,

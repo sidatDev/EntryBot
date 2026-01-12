@@ -294,6 +294,7 @@ export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { doc
 
     // Styles
     const inputClass = "w-full border-b border-slate-300 focus:border-indigo-600 outline-none px-0 py-2 bg-transparent text-slate-800 placeholder:text-slate-400 sm:text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+    const selectClass = "w-full border-b border-slate-300 focus:border-indigo-600 outline-none px-0 py-2 bg-transparent text-slate-800 sm:text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed appearance-none bg-[length:16px_16px] bg-[position:right_0.5rem_center] bg-no-repeat bg-[image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] pr-8";
     const labelClass = "text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 block";
     const columnHeaderClass = "text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-4 border-b border-slate-100 pb-2";
     const amountInputClass = "w-full text-right border-b border-slate-300 focus:border-indigo-600 outline-none bg-transparent font-medium sm:text-lg py-1 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -317,7 +318,7 @@ export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { doc
                         </div>
                     </div>
                 </div>
-                {!readOnly && (
+                {/* {!readOnly && (
                     <button
                         onClick={handleAutoFill}
                         disabled={processingAi}
@@ -326,7 +327,7 @@ export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { doc
                         {processingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                         Auto-fill
                     </button>
-                )}
+                )} */}
             </div>
 
             {/* Scrollable Form Area */}
@@ -372,7 +373,7 @@ export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { doc
                     <div className="grid grid-cols-12 gap-x-8 border-b border-slate-100 pb-8">
                         <div className="col-span-4">
                             <label className={labelClass}>Transaction Currency *</label>
-                            <select {...form.register("currency")} className={inputClass} disabled={readOnly}>
+                            <select {...form.register("currency")} className={selectClass} disabled={readOnly}>
                                 <option value="USD">USD ($)</option>
                                 <option value="GBP">GBP (£)</option>
                                 <option value="EUR">EUR (€)</option>
@@ -381,7 +382,7 @@ export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { doc
                         </div>
                         <div className="col-span-4">
                             <label className={labelClass}>Target/Invoice Currency *</label>
-                            <select {...form.register("invoiceCurrency")} className={inputClass} disabled={readOnly}>
+                            <select {...form.register("invoiceCurrency")} className={selectClass} disabled={readOnly}>
                                 <option value="USD">USD ($)</option>
                                 <option value="GBP">GBP (£)</option>
                                 <option value="EUR">EUR (€)</option>
@@ -411,7 +412,7 @@ export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { doc
                         </div>
                         <div className="col-span-6 ">
                             <label className={labelClass}>Payment Method *</label>
-                            <select {...form.register("paymentMethod")} className={inputClass} disabled={readOnly}>
+                            <select {...form.register("paymentMethod")} className={selectClass} disabled={readOnly}>
                                 <option value="">None</option>
                                 <option value="Cash">Cash</option>
                                 <option value="Bank">Bank Transfer</option>

@@ -302,12 +302,28 @@ export async function getDocuments(category?: string, status?: string, assignedT
     return await prisma.document.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        include: {
+        select: {
+            id: true,
+            name: true,
+            url: true,
+            type: true,
+            size: true,
+            status: true,
+            approvalStatus: true,
+            rejectionReason: true,
+            category: true,
+            source: true,
+            createdAt: true,
+            updatedAt: true,
+            uploaderId: true,
+            assignedToId: true,
+            organizationId: true,
             invoices: {
                 take: 1,
                 orderBy: { createdAt: "desc" }
             },
             bankStatement: true,
+            identityCard: true,
         },
     });
 }
@@ -528,10 +544,13 @@ export async function updateDocumentStatus(id: string, status: string) {
     revalidatePath(`/documents/${id}/process`);
 }
 
-export async function updateApprovalStatus(id: string, status: string) {
+export async function updateApprovalStatus(id: string, status: string, reason?: string) {
     await prisma.document.update({
         where: { id },
-        data: { approvalStatus: status },
+        data: {
+            approvalStatus: status,
+            rejectionReason: status === "DENIED" ? reason : null
+        },
     });
 
     revalidatePath("/documents");
