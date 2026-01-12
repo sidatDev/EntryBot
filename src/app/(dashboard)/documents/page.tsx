@@ -2,16 +2,29 @@ import { getDocuments } from "@/lib/actions";
 import { DocumentList } from "@/components/documents/DocumentList";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import Link from "next/link";
 
 export default async function DocumentsPage({
     searchParams,
 }: {
-    searchParams: Promise<{ category?: string; assignedTo?: string }>;
+    searchParams: Promise<{ category?: string; assignedTo?: string; tab?: string }>;
 }) {
-    const { category, assignedTo } = await searchParams;
+    const { category, assignedTo, tab = "all" } = await searchParams;
 
-    // Fetch documents based on category
-    const documents = await getDocuments(category, undefined, assignedTo);
+    // Determine status filter based on tab
+    let statusFilter: string | undefined;
+    if (tab === "new") statusFilter = "UPLOADED";
+    else if (tab === "processed") statusFilter = "PROCESSING";
+    else if (tab === "reports") statusFilter = "COMPLETED";
+
+    // Fetch documents based on category and status
+    const allDocuments = await getDocuments(category, statusFilter, assignedTo);
+
+    // Further filter for "approved" tab (based on approvalStatus, not status)
+    const documents = tab === "approved"
+        ? allDocuments.filter((doc: any) => doc.approvalStatus === "APPROVED")
+        : allDocuments;
+
     const session = await getServerSession(authOptions);
 
     // Determine page title based on category
@@ -27,11 +40,71 @@ export default async function DocumentsPage({
             ? "Manage your purchase invoices and receipts"
             : "Manage all your invoices and receipts";
 
+    // Build query params for tab links
+    const buildTabUrl = (tabName: string) => {
+        const params = new URLSearchParams();
+        if (category) params.set("category", category);
+        if (assignedTo) params.set("assignedTo", assignedTo);
+        params.set("tab", tabName);
+        return `/documents?${params.toString()}`;
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-2">
                 <h1 className="text-2xl font-bold text-slate-800">{pageTitle}</h1>
                 <p className="text-slate-500">{pageDescription}</p>
+            </div>
+
+            {/* Status Filter Tabs */}
+            <div className="border-b border-slate-200">
+                <div className="flex gap-8">
+                    <Link
+                        href={buildTabUrl("all")}
+                        className={`pb-3 text-sm font-medium transition-colors relative ${tab === "all"
+                                ? "text-indigo-600 border-b-2 border-indigo-600"
+                                : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
+                            }`}
+                    >
+                        All
+                    </Link>
+                    <Link
+                        href={buildTabUrl("new")}
+                        className={`pb-3 text-sm font-medium transition-colors relative ${tab === "new"
+                                ? "text-indigo-600 border-b-2 border-indigo-600"
+                                : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
+                            }`}
+                    >
+                        New
+                    </Link>
+                    <Link
+                        href={buildTabUrl("processed")}
+                        className={`pb-3 text-sm font-medium transition-colors relative ${tab === "processed"
+                                ? "text-indigo-600 border-b-2 border-indigo-600"
+                                : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
+                            }`}
+                    >
+                        Processed
+                    </Link>
+                    <Link
+                        href={buildTabUrl("approved")}
+                        className={`pb-3 text-sm font-medium transition-colors relative ${tab === "approved"
+                                ? "text-indigo-600 border-b-2 border-indigo-600"
+                                : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
+                            }`}
+                    >
+                        Approved
+                    </Link>
+                    <Link
+                        href={buildTabUrl("reports")}
+                        className={`pb-3 text-sm font-medium transition-colors relative ${tab === "reports"
+                                ? "text-indigo-600 border-b-2 border-indigo-600"
+                                : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
+                            }`}
+                    >
+                        Reports
+                    </Link>
+                </div>
             </div>
 
             <DocumentList

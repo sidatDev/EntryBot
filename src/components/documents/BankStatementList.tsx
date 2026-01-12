@@ -81,7 +81,7 @@ export function BankStatementList({ documents, isRecycleBin = false }: BankState
             {/* Table */}
             <div className="flex-1 overflow-x-auto">
                 <table className="w-full text-left text-sm text-slate-600">
-                    <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                    <thead className="bg-cyan-500 text-white font-semibold border-b border-slate-200">
                         <tr>
                             <th className="p-4 w-10">
                                 <input type="checkbox" className="rounded border-slate-300" />
