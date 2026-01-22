@@ -11,7 +11,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 
 export function ProcessPageClient({ document, initialInvoices, isReadOnly = false }: { document: any, initialInvoices: any[], isReadOnly?: boolean }) {
-    const isStatement = document.category === "STATEMENT";
+    const isStatement = document.category === "STATEMENT" || document.category === "BANK_STATEMENT" || document.category === "CARD_STATEMENT";
     const isIdCard = document.category === "IDENTITY_CARD" || document.category === "ID_CARD"; // Handle legacy if any
 
     // Determine default mode

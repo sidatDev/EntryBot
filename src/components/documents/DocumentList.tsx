@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { updateDocumentCategory, updateInvoicePaymentMethod, softDeleteDocument, restoreDocument, permanentDeleteDocument, exportInvoicesToCSV, updateApprovalStatus, bulkApproveDocuments, assignDocumentToMe } from "@/lib/actions";
 import { UploadModal } from "@/components/upload/UploadModal";
 import { BulkEditModal } from "./BulkEditModal";
+import { FilterPanel, InvoiceFilters } from "./FilterPanel";
 
 interface DocumentListProps {
     documents: any[];
@@ -32,6 +33,20 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [itemsPerPage, setItemsPerPage] = useState(25);
     const [notification, setNotification] = useState<{ message: string; type: "success" | "info" } | null>(null);
+
+    // Filter state
+    const [filters, setFilters] = useState<InvoiceFilters>({
+        docId: "",
+        documentType: "",
+        supplierName: "",
+        dateFrom: "",
+        dateTo: "",
+        amountMin: "",
+        amountMax: "",
+        category: "",
+        approvalStatus: "",
+        searchQuery: "",
+    });
 
     // Rejection Modal State
     const [rejectModalOpen, setRejectModalOpen] = useState(false);
@@ -73,10 +88,10 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
     };
 
     const toggleAll = () => {
-        if (selectedIds.length === documents.length) {
+        if (selectedIds.length === filteredDocuments.length) {
             setSelectedIds([]);
         } else {
-            setSelectedIds(documents.map(d => d.id));
+            setSelectedIds(filteredDocuments.map(d => d.id));
         }
     };
 
@@ -105,16 +120,19 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
     };
 
     const handleDelete = async () => {
-        if (!confirm(`${isRecycleBin ? "Permanently delete" : "Delete"} ${selectedIds.length} documents ? `)) return;
+        if (!confirm(`${isRecycleBin ? "Permanently delete" : "Delete"} ${selectedIds.length} documents?`)) return;
 
-        for (const id of selectedIds) {
-            if (isRecycleBin) {
-                await permanentDeleteDocument(id);
-            } else {
-                await softDeleteDocument(id);
-            }
+        // Import batch delete functions
+        const { batchSoftDeleteDocuments, batchPermanentDeleteDocuments } = await import("@/lib/actions");
+
+        if (isRecycleBin) {
+            await batchPermanentDeleteDocuments(selectedIds);
+        } else {
+            await batchSoftDeleteDocuments(selectedIds);
         }
+
         setSelectedIds([]);
+        router.refresh();
     };
 
     const handleRestore = async () => {
@@ -135,6 +153,82 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
         a.download = `invoices - ${Date.now()}.csv`;
         a.click();
     };
+
+    // Filter logic
+    const filteredDocuments = documents.filter((doc) => {
+        // Filter by DocID
+        if (filters.docId && !doc.id.toLowerCase().includes(filters.docId.toLowerCase())) {
+            return false;
+        }
+
+        // Filter by Document Type
+        if (filters.documentType) {
+            const isPdf = doc.type?.includes("pdf");
+            if (filters.documentType === "PDF" && !isPdf) return false;
+            if (filters.documentType === "IMAGE" && isPdf) return false;
+        }
+
+        // Filter by Supplier Name
+        if (filters.supplierName) {
+            const supplier = doc.invoices?.[0]?.supplierName || "";
+            if (!supplier.toLowerCase().includes(filters.supplierName.toLowerCase())) {
+                return false;
+            }
+        }
+
+        // Filter by Invoice Date Range
+        if (filters.dateFrom || filters.dateTo) {
+            const invoiceDate = doc.invoices?.[0]?.date;
+            if (!invoiceDate) return false;
+
+            const date = new Date(invoiceDate);
+            if (filters.dateFrom && date < new Date(filters.dateFrom)) return false;
+            if (filters.dateTo && date > new Date(filters.dateTo)) return false;
+        }
+
+        // Filter by Amount Range
+        if (filters.amountMin || filters.amountMax) {
+            const amount = doc.invoices?.[0]?.baseCurrencyAmount || doc.invoices?.[0]?.totalAmount || 0;
+            if (filters.amountMin && amount < parseFloat(filters.amountMin)) return false;
+            if (filters.amountMax && amount > parseFloat(filters.amountMax)) return false;
+        }
+
+        // Filter by Category
+        if (filters.category && doc.category !== filters.category) {
+            return false;
+        }
+
+        // Filter by Approval Status
+        if (filters.approvalStatus && doc.approvalStatus !== filters.approvalStatus) {
+            return false;
+        }
+
+        // Global Search
+        if (filters.searchQuery) {
+            const query = filters.searchQuery.toLowerCase();
+            const searchableFields = [
+                doc.id,
+                doc.name,
+                doc.invoices?.[0]?.supplierName,
+                doc.invoices?.[0]?.customerName,
+                doc.invoices?.[0]?.invoiceNumber,
+                doc.category,
+            ].filter(Boolean).join(" ").toLowerCase();
+
+            if (!searchableFields.includes(query)) return false;
+        }
+
+        return true;
+    });
+
+    // Extract unique supplier names for filter dropdown
+    const supplierOptions = Array.from(
+        new Set(
+            documents
+                .map((doc) => doc.invoices?.[0]?.supplierName)
+                .filter((name): name is string => Boolean(name))
+        )
+    ).sort();
 
     return (
         <div className="space-y-4 relative">
@@ -209,15 +303,6 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                         <RefreshCw className="h-4 w-4" /> Refresh
                     </button>
 
-                    {!isRecycleBin && (
-                        <button
-                            className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-600 rounded text-sm"
-                            title="Filter"
-                        >
-                            <Filter className="h-4 w-4" /> Filter
-                        </button>
-                    )}
-
                     <button
                         onClick={handleDelete}
                         disabled={selectedIds.length === 0}
@@ -226,6 +311,14 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                         <Trash2 className="h-4 w-4" /> {isRecycleBin ? "Delete Permanently" : "Delete"}
                     </button>
                 </div>
+            )}
+
+            {/* Filter Panel */}
+            {!isRecycleBin && !readOnly && (
+                <FilterPanel
+                    onFilterChange={setFilters}
+                    supplierOptions={supplierOptions}
+                />
             )}
 
             <div className={cn("bg-white border border-slate-200 shadow-sm overflow-hidden", readOnly ? "rounded-xl" : "rounded-b-xl")}>
@@ -269,14 +362,14 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {documents.length === 0 ? (
+                            {filteredDocuments.length === 0 ? (
                                 <tr>
                                     <td colSpan={10} className="px-6 py-12 text-center text-slate-400">
                                         No documents found. Upload some to get started.
                                     </td>
                                 </tr>
                             ) : (
-                                documents.slice(0, itemsPerPage).map((doc) => {
+                                filteredDocuments.slice(0, itemsPerPage).map((doc) => {
                                     const isSelected = selectedIds.includes(doc.id);
                                     // Get latest invoice if available
                                     const invoice = doc.invoices?.[0];

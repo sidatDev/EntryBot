@@ -16,7 +16,7 @@ export function DocumentPropertiesPanel({ document }: DocumentPropertiesPanelPro
     const [isPending, startTransition] = useTransition();
     const [note, setNote] = useState("");
     const [newTag, setNewTag] = useState("");
-    const [type, setType] = useState(document?.category === "STATEMENT" ? "Bank Statement"
+    const [type, setType] = useState((document?.category === "STATEMENT" || document?.category === "BANK_STATEMENT") ? "Bank Statement"
         : document?.category === "GENERAL" ? "Invoice & Receipt"
             : "Other Document");
 

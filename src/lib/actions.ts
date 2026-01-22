@@ -219,6 +219,7 @@ export async function getDocumentMetadata(documentId: string) {
             name: true,
             status: true,
             category: true,
+            type: true,
             createdAt: true,
             url: true, // Need URL for double check
             uploaderId: true, // Need for check
@@ -226,6 +227,7 @@ export async function getDocumentMetadata(documentId: string) {
             user: {
                 select: { name: true }
             },
+            bankStatement: true,
             identityCard: true // Allow fetching relation
         }
     });
@@ -377,10 +379,55 @@ export async function permanentDeleteDocument(id: string) {
     // Delete file from S3
     await deleteFromS3(doc.url);
 
-    // Delete invoices first to avoid relation errors (if not cascaded)
+    // Delete all related records first to avoid foreign key constraint violations
     await prisma.invoice.deleteMany({ where: { documentId: id } });
+    await prisma.bankStatement.deleteMany({ where: { documentId: id } });
+    await prisma.identityCard.deleteMany({ where: { documentId: id } });
+
+    // Now safe to delete the document
     await prisma.document.delete({ where: { id } });
 
+    revalidatePath("/recycle-bin");
+}
+
+/* -------------------------------------------------------------------------- */
+/*                           BATCH DELETE FUNCTIONS                           */
+/* -------------------------------------------------------------------------- */
+
+// Batch soft delete for better performance when deleting multiple documents
+export async function batchSoftDeleteDocuments(ids: string[]) {
+    for (const id of ids) {
+        await prisma.document.update({
+            where: { id },
+            data: {
+                status: "DELETED",
+                deletedAt: new Date()
+            }
+        });
+    }
+    // Only revalidate once after all deletions
+    revalidatePath("/documents");
+    revalidatePath("/dashboard");
+}
+
+// Batch permanent delete for better performance when deleting multiple documents
+export async function batchPermanentDeleteDocuments(ids: string[]) {
+    for (const id of ids) {
+        const doc = await prisma.document.findUnique({ where: { id } });
+        if (!doc) continue;
+
+        // Delete file from S3
+        await deleteFromS3(doc.url);
+
+        // Delete all related records
+        await prisma.invoice.deleteMany({ where: { documentId: id } });
+        await prisma.bankStatement.deleteMany({ where: { documentId: id } });
+        await prisma.identityCard.deleteMany({ where: { documentId: id } });
+
+        // Delete the document
+        await prisma.document.delete({ where: { id } });
+    }
+    // Only revalidate once after all deletions
     revalidatePath("/recycle-bin");
 }
 

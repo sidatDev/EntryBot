@@ -18,7 +18,12 @@ export default async function DocumentsPage({
     else if (tab === "reports") statusFilter = "COMPLETED";
 
     // Fetch documents based on category and status
-    const allDocuments = await getDocuments(category, statusFilter, assignedTo);
+    const rawDocuments = await getDocuments(category, statusFilter, assignedTo);
+
+    // Filter out Bank Statements as they have their own page
+    const allDocuments = rawDocuments.filter((doc: any) =>
+        !["STATEMENT", "BANK_STATEMENT", "CARD_STATEMENT"].includes(doc.category)
+    );
 
     // Further filter for "approved" tab (based on approvalStatus, not status)
     const documents = tab === "approved"
@@ -62,8 +67,8 @@ export default async function DocumentsPage({
                     <Link
                         href={buildTabUrl("all")}
                         className={`pb-3 text-sm font-medium transition-colors relative ${tab === "all"
-                                ? "text-indigo-600 border-b-2 border-indigo-600"
-                                : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
+                            ? "text-indigo-600 border-b-2 border-indigo-600"
+                            : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
                             }`}
                     >
                         All
@@ -71,8 +76,8 @@ export default async function DocumentsPage({
                     <Link
                         href={buildTabUrl("new")}
                         className={`pb-3 text-sm font-medium transition-colors relative ${tab === "new"
-                                ? "text-indigo-600 border-b-2 border-indigo-600"
-                                : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
+                            ? "text-indigo-600 border-b-2 border-indigo-600"
+                            : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
                             }`}
                     >
                         New
@@ -80,8 +85,8 @@ export default async function DocumentsPage({
                     <Link
                         href={buildTabUrl("processed")}
                         className={`pb-3 text-sm font-medium transition-colors relative ${tab === "processed"
-                                ? "text-indigo-600 border-b-2 border-indigo-600"
-                                : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
+                            ? "text-indigo-600 border-b-2 border-indigo-600"
+                            : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
                             }`}
                     >
                         Processed
@@ -89,8 +94,8 @@ export default async function DocumentsPage({
                     <Link
                         href={buildTabUrl("approved")}
                         className={`pb-3 text-sm font-medium transition-colors relative ${tab === "approved"
-                                ? "text-indigo-600 border-b-2 border-indigo-600"
-                                : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
+                            ? "text-indigo-600 border-b-2 border-indigo-600"
+                            : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
                             }`}
                     >
                         Approved
@@ -98,8 +103,8 @@ export default async function DocumentsPage({
                     <Link
                         href={buildTabUrl("reports")}
                         className={`pb-3 text-sm font-medium transition-colors relative ${tab === "reports"
-                                ? "text-indigo-600 border-b-2 border-indigo-600"
-                                : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
+                            ? "text-indigo-600 border-b-2 border-indigo-600"
+                            : "text-slate-500 hover:text-slate-700 hover:border-b-2 hover:border-slate-300"
                             }`}
                     >
                         Reports

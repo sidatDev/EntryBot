@@ -89,7 +89,7 @@ export function UploadHistoryTable({ documents, pagination }: UploadHistoryTable
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                                            {doc.category === "STATEMENT" ? "Statement" :
+                                            {(doc.category === "STATEMENT" || doc.category === "BANK_STATEMENT" || doc.category === "CARD_STATEMENT") ? "Statement" :
                                                 doc.category === "SALES" ? "Invoice" :
                                                     doc.category === "PURCHASE" ? "Receipt" : "Other"}
                                         </span>
