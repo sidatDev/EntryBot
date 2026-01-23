@@ -11,6 +11,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "EntryBot - Document Processing",
   description: "Manual entry application for sales and purchase invoices",
+  icons: {
+    icon: "/images/sidatLogo.jpeg",
+  },
 };
 
 export default async function RootLayout({
