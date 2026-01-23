@@ -23,6 +23,9 @@ export default async function DashboardPage() {
         }
     });
 
+    if (!user) return <div>User record not found.</div>;
+
+
     // NEW: Operator View (Prioritize over Org Check)
     if (user?.role === "ENTRY_OPERATOR") {
         const { getDocuments } = await import("@/lib/actions");
