@@ -125,3 +125,55 @@ export async function getAllOrganizations() {
     });
     return { data: orgs };
 }
+
+export async function getOrganizations(type?: string) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const where: any = {};
+        if (type) where.type = type;
+
+        const orgs = await prisma.organization.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            include: {
+                _count: {
+                    select: {
+                        children: true,
+                        users: true
+                    }
+                }
+            }
+        });
+
+        return { success: true, data: orgs };
+    } catch (error) {
+        console.error("GET ORGS ERROR:", error);
+        return { success: false, error: "Failed to fetch organizations" };
+    }
+}
+
+export async function getChildOrganizations(parentId: string) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const children = await prisma.organization.findMany({
+            where: { parentId },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                _count: {
+                    select: {
+                        documents: true
+                    }
+                }
+            }
+        });
+
+        return { success: true, data: children };
+    } catch (error) {
+        console.error("GET CHILD ORGS ERROR:", error);
+        return { success: false, error: "Failed to fetch child organizations" };
+    }
+}
