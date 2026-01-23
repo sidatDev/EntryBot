@@ -1329,6 +1329,7 @@ export async function getExpenseReport(
             invoiceNumber: true,
             totalAmount: true,
             currency: true,
+            createdAt: true,
         },
         orderBy: {
             date: "asc",
@@ -1349,7 +1350,8 @@ export async function getExpenseReport(
     }
 
     invoices.forEach((inv) => {
-        const monthKey = inv.date.toISOString().slice(0, 7);
+        const dateToUse = inv.date || inv.createdAt;
+        const monthKey = dateToUse.toISOString().slice(0, 7);
         if (!monthlyBreakdown[monthKey]) {
             monthlyBreakdown[monthKey] = { total: 0, count: 0, invoices: [] };
         }

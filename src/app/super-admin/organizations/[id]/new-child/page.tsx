@@ -2,7 +2,7 @@
 
 import { useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { createOrganization } from "@/lib/actions/organization";
+import { createChildOrganization } from "@/lib/actions/organization";
 
 export default function NewChildOrganizationPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -23,7 +23,7 @@ export default function NewChildOrganizationPage({ params }: { params: Promise<{
             adminPassword: formData.get('adminPassword') as string,
         };
 
-        const result = await createOrganization(data);
+        const result = await createChildOrganization(data);
 
         if (result.error) {
             setError(result.error);

@@ -10,36 +10,103 @@ import { authOptions } from "@/lib/auth";
 /*                            ORGANIZATION ACTIONS                            */
 /* -------------------------------------------------------------------------- */
 
-export async function createOrganization(name: string, type: "MASTER_CLIENT" | "SUB_CLIENT" = "SUB_CLIENT") {
+export async function createOrganization(
+    dataOrName: string | {
+        name: string;
+        type: "MASTER_CLIENT";
+        adminName: string;
+        adminEmail: string;
+        adminPassword: string;
+    },
+    type: "MASTER_CLIENT" | "SUB_CLIENT" = "SUB_CLIENT"
+) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
         return { success: false, error: "Unauthorized" };
     }
 
-    try {
-        const newOrg = await prisma.organization.create({
-            data: {
-                name,
-                type,
-                ownerId: session.user.id, // Current user is the owner
-                status: "ACTIVE",
-                users: {
-                    connect: { id: session.user.id } // Automatically add owner as member
-                }
-            },
-        });
+    // Handle simple signature (name, type) - Legacy/Simple
+    if (typeof dataOrName === 'string') {
+        const name = dataOrName;
+        try {
+            const newOrg = await prisma.organization.create({
+                data: {
+                    name,
+                    type,
+                    ownerId: session.user.id,
+                    status: "ACTIVE",
+                    users: { connect: { id: session.user.id } }
+                },
+            });
 
-        // Also explicitly update the user's current organizationId context to this one
-        await prisma.user.update({
-            where: { id: session.user.id },
-            data: { organizationId: newOrg.id }
+            await prisma.user.update({
+                where: { id: session.user.id },
+                data: { organizationId: newOrg.id }
+            });
+
+            revalidatePath("/dashboard/organizations");
+            return { success: true, organization: newOrg };
+        } catch (error) {
+            console.error("CREATE ORG ERROR:", error);
+            return { success: false, error: "Failed to create organization" };
+        }
+    }
+
+    // Handle complex signature (Master Client Object)
+    const data = dataOrName;
+
+    // Permission check for creating Master Client (Admin only)
+    if (session.user.role !== "ADMIN" && session.user.role !== "MANAGER") { // Adjust roles as needed
+        return { success: false, error: "Unauthorized to create Master Clients" };
+    }
+
+    try {
+        const result = await prisma.$transaction(async (tx) => {
+            // 1. Create Organization
+            const newOrg = await tx.organization.create({
+                data: {
+                    name: data.name,
+                    type: "MASTER_CLIENT",
+                    ownerId: session.user.id, // Creator is owner, or new admin? Usually creator remains super-owner
+                    status: "ACTIVE",
+                }
+            });
+
+            // 2. Create Admin User
+            const hashedPassword = await hash(data.adminPassword, 10);
+            const newUser = await tx.user.create({
+                data: {
+                    name: data.adminName,
+                    email: data.adminEmail,
+                    passwordHash: hashedPassword,
+                    role: "MANAGER", // Manager of this Master Client
+                    organizationId: newOrg.id,
+                    status: "ACTIVE",
+                }
+            });
+
+            // 3. Connect User to Org
+            await tx.organization.update({
+                where: { id: newOrg.id },
+                data: {
+                    users: { connect: { id: newUser.id } },
+                    // Also make the new user the 'owner' if desired, or keep super-admin as owner. 
+                    // Let's keep super-admin as owner for control, but new user is the local Admin.
+                }
+            });
+
+            return newOrg;
         });
 
         revalidatePath("/dashboard/organizations");
-        return { success: true, organization: newOrg };
-    } catch (error) {
-        console.error("CREATE ORG ERROR:", error);
-        return { success: false, error: "Failed to create organization" };
+        return { success: true, organization: result };
+
+    } catch (error: any) {
+        console.error("CREATE MASTER ORG ERROR:", error);
+        if (error.code === 'P2002') {
+            return { success: false, error: "A user with this email already exists." };
+        }
+        return { success: false, error: "Failed to create Master Client" };
     }
 }
 
@@ -175,5 +242,78 @@ export async function getChildOrganizations(parentId: string) {
     } catch (error) {
         console.error("GET CHILD ORGS ERROR:", error);
         return { success: false, error: "Failed to fetch child organizations" };
+    }
+}
+
+export async function createChildOrganization(data: {
+    name: string;
+    type: "CHILD_CLIENT";
+    parentId: string;
+    adminName: string;
+    adminEmail: string;
+    adminPassword: string;
+}) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // Basic permission check (can be expanded)
+    // Ensure current user owns the parent org or is ADMIN
+    const parentOrg = await prisma.organization.findUnique({
+        where: { id: data.parentId }
+    });
+
+    if (!parentOrg || (parentOrg.ownerId !== session.user.id && session.user.role !== "ADMIN")) {
+        return { success: false, error: "You do not have permission to add sub-accounts to this organization" };
+    }
+
+    try {
+        // Create Org and User in a transaction
+        const result = await prisma.$transaction(async (tx) => {
+            // 1. Create Child Organization
+            const newOrg = await tx.organization.create({
+                data: {
+                    name: data.name,
+                    type: data.type,
+                    parentId: data.parentId,
+                    ownerId: session.user.id, // Parent owner also owns the child structure generally, or handled via hierarchy
+                    status: "ACTIVE",
+                }
+            });
+
+            // 2. Create Admin User for this Child Org
+            const hashedPassword = await hash(data.adminPassword, 10);
+            const newUser = await tx.user.create({
+                data: {
+                    name: data.adminName,
+                    email: data.adminEmail,
+                    passwordHash: hashedPassword,
+                    role: "MANAGER", // Manager of this child org
+                    organizationId: newOrg.id,
+                    status: "ACTIVE",
+                }
+            });
+
+            // 3. Connect User to Org as member
+            await tx.organization.update({
+                where: { id: newOrg.id },
+                data: {
+                    users: {
+                        connect: { id: newUser.id }
+                    }
+                }
+            });
+
+            return newOrg;
+        });
+
+        revalidatePath(`/super-admin/organizations/${data.parentId}`);
+        return { success: true, organization: result };
+
+    } catch (error: any) {
+        console.error("CREATE CHILD ORG ERROR:", error);
+        if (error.code === 'P2002') {
+            return { success: false, error: "A user with this email already exists." };
+        }
+        return { success: false, error: "Failed to create sub-account" };
     }
 }
