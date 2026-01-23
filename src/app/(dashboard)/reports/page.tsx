@@ -1,4 +1,5 @@
 import { getExpenseReport } from "@/lib/actions";
+import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -11,14 +12,17 @@ export default async function ReportsPage({
     searchParams: Promise<{ view?: string; year?: string; month?: string }>;
 }) {
     const session = await getServerSession(authOptions);
-    const user = session?.user;
+    if (!session?.user?.id) redirect("/login");
+
+    const user = await prisma.user.findUnique({
+        where: { id: session.user.id }
+    });
 
     if (!user) redirect("/login");
 
-    // Get user's organization
     const organizationId = user.organizationId;
     if (!organizationId) {
-        return <div className="p-8">No organization found</div>;
+        return <div className="p-8">No organization workspace found for your account.</div>;
     }
 
     const params = await searchParams;
@@ -61,8 +65,8 @@ export default async function ReportsPage({
                         <Link
                             href={buildUrl("annual", year)}
                             className={`pb-3 text-sm font-medium transition-colors ${viewType === "annual"
-                                    ? "text-indigo-600 border-b-2 border-indigo-600"
-                                    : "text-slate-500 hover:text-slate-700"
+                                ? "text-indigo-600 border-b-2 border-indigo-600"
+                                : "text-slate-500 hover:text-slate-700"
                                 }`}
                         >
                             Annual View
@@ -70,8 +74,8 @@ export default async function ReportsPage({
                         <Link
                             href={buildUrl("monthly", year, month)}
                             className={`pb-3 text-sm font-medium transition-colors ${viewType === "monthly"
-                                    ? "text-indigo-600 border-b-2 border-indigo-600"
-                                    : "text-slate-500 hover:text-slate-700"
+                                ? "text-indigo-600 border-b-2 border-indigo-600"
+                                : "text-slate-500 hover:text-slate-700"
                                 }`}
                         >
                             Monthly View
