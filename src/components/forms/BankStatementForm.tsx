@@ -145,9 +145,9 @@ export function BankStatementForm({ documentId, documentUrl, readOnly = false }:
                         id: Math.random().toString(36).substr(2, 9),
                         bookingDate: t.bookingDate || "",
                         description: t.description || "",
-                        debit: Number(t.debit) || 0,
-                        credit: Number(t.credit) || 0,
-                        availableBalance: Number(t.availableBalance) || 0
+                        debit: parseNumber(t.debit),
+                        credit: parseNumber(t.credit),
+                        availableBalance: parseNumber(t.availableBalance)
                     })));
                 }
             }
@@ -165,6 +165,22 @@ export function BankStatementForm({ documentId, documentUrl, readOnly = false }:
         }
     };
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 50;
+
+    const totalPages = Math.max(1, Math.ceil(transactions.length / ITEMS_PER_PAGE));
+    const paginatedTransactions = transactions.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
+    const goToPage = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+
     // Transaction Management
     const addTransaction = () => {
         setTransactions([...transactions, {
@@ -175,6 +191,8 @@ export function BankStatementForm({ documentId, documentUrl, readOnly = false }:
             debit: 0,
             availableBalance: 0
         }]);
+        // Jump to last page to see new item
+        setTimeout(() => setCurrentPage(Math.ceil((transactions.length + 1) / ITEMS_PER_PAGE)), 0);
     };
 
     const updateTransaction = (id: string, field: keyof BankTransaction, value: any) => {
@@ -187,24 +205,65 @@ export function BankStatementForm({ documentId, documentUrl, readOnly = false }:
         setTransactions(prev => prev.filter(t => t.id !== id));
     };
 
+    // Helper to parse numbers dealing with commas and currency symbols
+    const parseNumber = (val: any) => {
+        if (!val) return 0;
+        if (typeof val === 'number') return val;
+        // Remove commas and spaces
+        const cleanStr = String(val).replace(/[, ]/g, '');
+        const num = parseFloat(cleanStr);
+        return isNaN(num) ? 0 : num;
+    };
+
+    // CSV Mapping State
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [csvData, setCsvData] = useState<any[]>([]);
+    const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+    const [columnMapping, setColumnMapping] = useState({
+        date: "",
+        description: "",
+        debit: "",
+        credit: "",
+        balance: ""
+    });
+
+    // Helper to find value by fuzzy matching keys
+    const findColumnValue = (row: any, keywords: string[]) => {
+        const keys = Object.keys(row);
+        for (const keyword of keywords) {
+            // 1. Exact match
+            if (row[keyword] !== undefined) return row[keyword];
+            // 2. Case-insensitive match
+            const keyMatch = keys.find(k => k.toLowerCase().trim() === keyword.toLowerCase().trim());
+            if (keyMatch) return row[keyMatch];
+            // 3. Partial match (key contains keyword) - be careful with "Date" vs "Update"
+            const partialMatch = keys.find(k => k.toLowerCase().includes(keyword.toLowerCase()));
+            if (partialMatch && keyword.length > 3) return row[partialMatch];
+        }
+        return undefined;
+    };
+
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        const processData = (data: any[]) => {
-            const newTransactions: BankTransaction[] = data.map((row: any) => ({
-                id: Math.random().toString(36).substr(2, 9),
-                bookingDate: row['Date'] || row['date'] || row['Booking Date'] || "",
-                description: row['Description'] || row['description'] || row['Details'] || "",
-                debit: Number(row['Debit'] || row['debit'] || row['Withdrawal'] || 0),
-                credit: Number(row['Credit'] || row['credit'] || row['Deposit'] || 0),
-                availableBalance: Number(row['Balance'] || row['balance'] || 0)
-            })).filter(t => t.description || t.debit || t.credit); // Filter empty rows
+        // Reset input for re-selection
+        event.target.value = '';
 
-            setTransactions(prev => [...prev, ...newTransactions]);
-            toast.success(`Imported ${newTransactions.length} transactions`);
-            // Reset input
-            event.target.value = '';
+        const processRawData = (data: any[], headers: string[]) => {
+            setCsvData(data);
+            setCsvHeaders(headers);
+
+            // Auto-guess mapping
+            const guess = {
+                date: headers.find(h => /date|time/i.test(h)) || "",
+                description: headers.find(h => /desc|detail|narration|particular|memo/i.test(h)) || "",
+                debit: headers.find(h => /debit|dr|withdraw|paid out/i.test(h)) || "",
+                credit: headers.find(h => /credit|cr|deposit|paid in/i.test(h)) || "",
+                balance: headers.find(h => /bal|available/i.test(h)) || ""
+            };
+            setColumnMapping(guess);
+            setShowImportModal(true);
         };
 
         if (file.name.endsWith('.csv')) {
@@ -212,7 +271,8 @@ export function BankStatementForm({ documentId, documentUrl, readOnly = false }:
                 header: true,
                 skipEmptyLines: true,
                 complete: (results) => {
-                    processData(results.data);
+                    const headers = results.meta.fields || [];
+                    processRawData(results.data, headers);
                 },
                 error: (error) => {
                     toast.error("Failed to parse CSV", { description: error.message });
@@ -226,10 +286,27 @@ export function BankStatementForm({ documentId, documentUrl, readOnly = false }:
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                processData(jsonData);
+                const headers = XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0] as string[];
+                processRawData(jsonData, headers);
             };
             reader.readAsArrayBuffer(file);
         }
+    };
+
+    const handleConfirmImport = () => {
+        const newTransactions: BankTransaction[] = csvData.map((row: any) => ({
+            id: Math.random().toString(36).substr(2, 9),
+            bookingDate: row[columnMapping.date] || "",
+            description: row[columnMapping.description] || "",
+            debit: parseNumber(row[columnMapping.debit]),
+            credit: parseNumber(row[columnMapping.credit]),
+            availableBalance: parseNumber(row[columnMapping.balance])
+        })).filter(t => t.description || t.debit || t.credit);
+
+        setTransactions(prev => [...prev, ...newTransactions]);
+        toast.success(`Imported ${newTransactions.length} transactions`);
+        setShowImportModal(false);
+        setCsvData([]);
     };
 
     // Styles
@@ -237,7 +314,102 @@ export function BankStatementForm({ documentId, documentUrl, readOnly = false }:
     const labelClass = "text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 block";
 
     return (
-        <div className="h-full flex flex-col bg-white">
+        <div className="h-full flex flex-col bg-white overflow-hidden relative">
+            {/* Import Modal Overlay */}
+            {showImportModal && (
+                <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                            <h3 className="font-semibold text-slate-800">Map CSV Columns</h3>
+                            <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-slate-600">
+                                <Trash2 className="h-4 w-4 rotate-45" /> {/* Close icon hack using Trash/Plus/X if X not imported, assume X is not imported but reused Lucide icons are often multipurpose */}
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4 overflow-y-auto">
+                            <p className="text-sm text-slate-500 mb-4">
+                                Please confirm which columns from your file match the required fields.
+                            </p>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-700 mb-1 block">Booking Date</label>
+                                    <select
+                                        className="w-full p-2 border border-slate-200 rounded-lg text-sm"
+                                        value={columnMapping.date}
+                                        onChange={(e) => setColumnMapping(prev => ({ ...prev, date: e.target.value }))}
+                                    >
+                                        <option value="">-- Select Column --</option>
+                                        {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-700 mb-1 block">Description</label>
+                                    <select
+                                        className="w-full p-2 border border-slate-200 rounded-lg text-sm"
+                                        value={columnMapping.description}
+                                        onChange={(e) => setColumnMapping(prev => ({ ...prev, description: e.target.value }))}
+                                    >
+                                        <option value="">-- Select Column --</option>
+                                        {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                    </select>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-semibold text-emerald-700 mb-1 block">Credit (Deposit)</label>
+                                        <select
+                                            className="w-full p-2 border border-slate-200 rounded-lg text-sm"
+                                            value={columnMapping.credit}
+                                            onChange={(e) => setColumnMapping(prev => ({ ...prev, credit: e.target.value }))}
+                                        >
+                                            <option value="">-- Select Column (Optional) --</option>
+                                            {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-red-700 mb-1 block">Debit (Withdrawal)</label>
+                                        <select
+                                            className="w-full p-2 border border-slate-200 rounded-lg text-sm"
+                                            value={columnMapping.debit}
+                                            onChange={(e) => setColumnMapping(prev => ({ ...prev, debit: e.target.value }))}
+                                        >
+                                            <option value="">-- Select Column (Optional) --</option>
+                                            {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-700 mb-1 block">Running Balance</label>
+                                    <select
+                                        className="w-full p-2 border border-slate-200 rounded-lg text-sm"
+                                        value={columnMapping.balance}
+                                        onChange={(e) => setColumnMapping(prev => ({ ...prev, balance: e.target.value }))}
+                                    >
+                                        <option value="">-- Select Column (Optional) --</option>
+                                        {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowImportModal(false)}
+                                className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleConfirmImport}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm"
+                            >
+                                Import Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="px-8 py-5 flex items-center justify-between border-b border-slate-100/50">
                 <div className="flex items-center gap-3">
@@ -331,7 +503,7 @@ export function BankStatementForm({ documentId, documentUrl, readOnly = false }:
                     {/* Transactions */}
                     <div className="mt-8 border-t border-slate-100 pt-8">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-bold text-slate-900">Transactions</h3>
+                            <h3 className="text-sm font-bold text-slate-900">Transactions <span className="text-slate-400 font-normal ml-2">({transactions.length} total)</span></h3>
                             {!readOnly && (
                                 <div className="flex items-center gap-3">
                                     <button
@@ -349,84 +521,199 @@ export function BankStatementForm({ documentId, documentUrl, readOnly = false }:
                             )}
                         </div>
 
-                        <div className="overflow-x-auto">
+                        {/* Pagination Controls (Top) */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-end gap-2 mb-2">
+                                <span className="text-xs text-slate-500 mr-2">
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => goToPage(1)}
+                                    disabled={currentPage === 1}
+                                    className="px-2 py-1 text-xs border rounded hover:bg-slate-50 disabled:opacity-50"
+                                    title="First Page"
+                                >
+                                    &lt;&lt;
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => goToPage(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className="px-2 py-1 text-xs border rounded hover:bg-slate-50 disabled:opacity-50"
+                                >
+                                    Previous
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => goToPage(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className="px-2 py-1 text-xs border rounded hover:bg-slate-50 disabled:opacity-50"
+                                >
+                                    Next
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => goToPage(totalPages)}
+                                    disabled={currentPage === totalPages}
+                                    className="px-2 py-1 text-xs border rounded hover:bg-slate-50 disabled:opacity-50"
+                                    title="Last Page"
+                                >
+                                    &gt;&gt;
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="overflow-x-auto border border-slate-100 rounded-lg">
                             <table className="w-full text-left border-collapse">
-                                <thead>
+                                <thead className="bg-slate-50/50">
                                     <tr>
-                                        <th className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-2 w-24">Date</th>
-                                        <th className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-2 w-64">Description</th>
-                                        <th className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-2 text-right w-24">Debit</th>
-                                        <th className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-2 text-right w-24">Credit</th>
-                                        <th className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-2 text-right w-24">Balance</th>
-                                        {!readOnly && <th className="w-8"></th>}
+                                        <th className="py-2 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-32">Date</th>
+                                        <th className="py-2 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Description</th>
+                                        <th className="py-2 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right w-32">Debit</th>
+                                        <th className="py-2 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right w-32">Credit</th>
+                                        <th className="py-2 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right w-32">Balance</th>
+                                        {!readOnly && <th className="w-10"></th>}
                                     </tr>
                                 </thead>
-                                <tbody className="text-sm text-slate-700">
-                                    {transactions.map((t) => (
-                                        <tr key={t.id} className="border-b border-slate-50 hover:bg-slate-50/50">
-                                            <td className="py-1">
+                                <tbody className="text-sm text-slate-700 divide-y divide-slate-100">
+                                    {paginatedTransactions.map((t) => (
+                                        <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
+                                            <td className="p-1">
                                                 <input
                                                     type="date"
                                                     value={t.bookingDate}
                                                     onChange={(e) => updateTransaction(t.id, "bookingDate", e.target.value)}
-                                                    className="w-full bg-transparent outline-none focus:text-emerald-600 disabled:opacity-50"
+                                                    className="w-full px-2 py-1.5 bg-transparent rounded hover:bg-white focus:bg-white focus:ring-1 focus:ring-indigo-200 outline-none transition-all disabled:opacity-50"
                                                     disabled={readOnly}
                                                 />
                                             </td>
-                                            <td className="py-1">
+                                            <td className="p-1">
                                                 <input
                                                     type="text"
                                                     value={t.description}
                                                     onChange={(e) => updateTransaction(t.id, "description", e.target.value)}
-                                                    className="w-full bg-transparent outline-none placeholder:text-slate-300 disabled:opacity-50"
-                                                    placeholder="Transaction details"
+                                                    className="w-full px-2 py-1.5 bg-transparent rounded hover:bg-white focus:bg-white focus:ring-1 focus:ring-indigo-200 outline-none transition-all disabled:opacity-50"
+                                                    placeholder="Details..."
                                                     disabled={readOnly}
                                                 />
                                             </td>
-                                            <td className="py-1">
+                                            <td className="p-1">
                                                 <input
                                                     type="number" step="0.01"
-                                                    value={t.debit}
+                                                    value={t.debit || ''}
                                                     onChange={(e) => updateTransaction(t.id, "debit", parseFloat(e.target.value) || 0)}
-                                                    className="w-full text-right bg-transparent outline-none focus:text-red-500 disabled:opacity-50"
+                                                    className="w-full px-2 py-1.5 text-right bg-transparent rounded hover:bg-white focus:bg-white focus:ring-1 focus:ring-red-200 outline-none transition-all text-red-600 disabled:opacity-50"
                                                     disabled={readOnly}
                                                 />
                                             </td>
-                                            <td className="py-1">
+                                            <td className="p-1">
                                                 <input
                                                     type="number" step="0.01"
-                                                    value={t.credit}
+                                                    value={t.credit || ''}
                                                     onChange={(e) => updateTransaction(t.id, "credit", parseFloat(e.target.value) || 0)}
-                                                    className="w-full text-right bg-transparent outline-none focus:text-emerald-500 disabled:opacity-50"
+                                                    className="w-full px-2 py-1.5 text-right bg-transparent rounded hover:bg-white focus:bg-white focus:ring-1 focus:ring-emerald-200 outline-none transition-all text-emerald-600 disabled:opacity-50"
                                                     disabled={readOnly}
                                                 />
                                             </td>
-                                            <td className="py-1">
+                                            <td className="p-1">
                                                 <input
                                                     type="number" step="0.01"
-                                                    value={t.availableBalance}
+                                                    value={t.availableBalance || ''}
                                                     onChange={(e) => updateTransaction(t.id, "availableBalance", parseFloat(e.target.value) || 0)}
-                                                    className="w-full text-right bg-transparent outline-none font-medium text-slate-500 disabled:opacity-50"
+                                                    className="w-full px-2 py-1.5 text-right bg-transparent rounded hover:bg-white focus:bg-white focus:ring-1 focus:ring-indigo-200 outline-none transition-all text-slate-500 font-medium disabled:opacity-50"
                                                     disabled={readOnly}
                                                 />
                                             </td>
                                             {!readOnly && (
-                                                <td className="py-1 text-right">
-                                                    <button type="button" onClick={() => deleteTransaction(t.id)} className="text-slate-300 hover:text-red-500 transition-colors">
-                                                        <Trash2 className="h-3 w-3" />
+                                                <td className="p-1 text-center">
+                                                    <button type="button" onClick={() => deleteTransaction(t.id)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
+                                                        <Trash2 className="h-3.5 w-3.5" />
                                                     </button>
                                                 </td>
                                             )}
                                         </tr>
                                     ))}
-                                    {transactions.length === 0 && (
+                                    {paginatedTransactions.length === 0 && (
                                         <tr>
-                                            <td colSpan={readOnly ? 5 : 6} className="py-4 text-center text-xs text-slate-400 italic">No transactions added yet</td>
+                                            <td colSpan={readOnly ? 5 : 6} className="py-8 text-center text-sm text-slate-400 italic">
+                                                No transactions found on this page.
+                                            </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Pagination Controls (Bottom) */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between mt-4">
+                                <div className="text-xs text-slate-400">
+                                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, transactions.length)} of {transactions.length} entries
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => goToPage(1)}
+                                        disabled={currentPage === 1}
+                                        className="px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        title="First Page"
+                                    >
+                                        &lt;&lt;
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => goToPage(currentPage - 1)}
+                                        disabled={currentPage === 1}
+                                        className="px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        Previous
+                                    </button>
+                                    <div className="flex items-center gap-1">
+                                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                            let p = i + 1;
+                                            if (totalPages > 5) {
+                                                // Ensure start page doesn't go below 1 or cause overflow
+                                                let startPage = Math.max(1, currentPage - 2);
+                                                if (startPage + 4 > totalPages) startPage = totalPages - 4;
+                                                p = startPage + i;
+                                            }
+
+                                            return (
+                                                <button
+                                                    key={p}
+                                                    type="button"
+                                                    onClick={() => goToPage(p)}
+                                                    className={`w-7 h-7 flex items-center justify-center text-xs rounded-md transition-colors ${currentPage === p
+                                                        ? 'bg-indigo-600 text-white font-medium shadow-sm'
+                                                        : 'text-slate-600 hover:bg-slate-100'
+                                                        }`}
+                                                >
+                                                    {p}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => goToPage(currentPage + 1)}
+                                        disabled={currentPage === totalPages}
+                                        className="px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        Next
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => goToPage(totalPages)}
+                                        disabled={currentPage === totalPages}
+                                        className="px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        title="Last Page"
+                                    >
+                                        &gt;&gt;
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Action Buttons */}

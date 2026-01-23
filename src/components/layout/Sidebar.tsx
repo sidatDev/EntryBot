@@ -225,7 +225,8 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
             <div className="p-6 border-b border-slate-700">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-green-500 rounded-lg flex items-center justify-center shadow-lg">
-                        <div className="text-black font-bold text-xl">eb</div>
+                        <img src="/images/sidatLogo.jpeg" className="border rounded-lg" alt="" />
+                        {/* <div className="text-black font-bold text-xl">eb</div> */}
                     </div>
                     <div>
                         <h1 className="text-lg font-bold text-white leading-tight">EntryBot</h1>
