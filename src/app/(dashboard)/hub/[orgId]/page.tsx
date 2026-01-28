@@ -54,13 +54,13 @@ export default async function ClientWorkspacePage({ params }: { params: Promise<
                         <span>Credits: {org.credits}</span>
                     </div>
                 </div>
-                <div className="ml-auto flex gap-3">
+                {/* <div className="ml-auto flex gap-3">
                     <Button asChild className="bg-indigo-600 hover:bg-indigo-700">
                         <Link href={`/documents/upload?orgId=${org.id}`}>
                             <Upload className="mr-2 h-4 w-4" /> Upload Documents
                         </Link>
                     </Button>
-                </div>
+                </div> */}
             </div>
 
             {/* Quick Stats Row */}

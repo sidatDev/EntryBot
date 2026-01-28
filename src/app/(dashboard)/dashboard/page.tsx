@@ -9,7 +9,12 @@ import { getServerSession } from "next-auth"; // Or get current user action
 import { prisma } from "@/lib/prisma"; // Direct access since page is server component
 import { authOptions } from "@/lib/auth";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ orgId?: string }>;
+}) {
+    const params = await searchParams;
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
 
@@ -58,9 +63,21 @@ export default async function DashboardPage() {
     }
 
     // Fallback: If user has no current org but owns some, switch context to first owned one
-    let currentOrg = user?.organization;
-    if (!currentOrg && user?.ownedOrganizations && user.ownedOrganizations.length > 0) {
-        currentOrg = user.ownedOrganizations[0];
+    // PRIORITY: 1. Search Param  2. User's Main Org property  3. First Owned Org
+    let currentOrgId = params.orgId || user?.organizationId;
+
+    // If param is set, we need to fetch that org details to check type/access
+    // If not set, check owned
+    if (!currentOrgId && user?.ownedOrganizations && user.ownedOrganizations.length > 0) {
+        currentOrgId = user.ownedOrganizations[0].id;
+    }
+
+    // Validated Org Fetch
+    let currentOrg = null;
+    if (currentOrgId) {
+        currentOrg = await prisma.organization.findUnique({
+            where: { id: currentOrgId }
+        });
     }
 
     if (!currentOrg) {
@@ -83,7 +100,8 @@ export default async function DashboardPage() {
 
     // View Logic
     // View Logic
-    if (orgType === "MASTER") {
+    // View Logic
+    if (orgType === "MASTER_CLIENT") {
         return (
             <div className="p-8">
                 <h1 className="text-3xl font-bold text-gray-900 mb-8">Master Dashboard</h1>
@@ -92,7 +110,7 @@ export default async function DashboardPage() {
         );
     }
 
-    if (orgType === "CHILD") {
+    if (orgType === "CHILD") { // Or SUB_CLIENT? Assuming CHILD based on previous context but double check schema if needed.
         return (
             <div className="p-8">
                 <ChildClientView organizationId={orgId} />
@@ -102,7 +120,7 @@ export default async function DashboardPage() {
 
     // NEW: Manager View
     if (user.role === "MANAGER") {
-        const { getUsersByRole } = await import("@/lib/actions"); // Dynamic import to avoid circular dep if needed
+        const { getUsersByRole } = await import("@/lib/actions");
         const teamMembers = await getUsersByRole("ENTRY_OPERATOR");
 
         const { ManagerView } = await import("@/components/dashboard/ManagerView");
@@ -122,9 +140,9 @@ export default async function DashboardPage() {
     }
 
 
-
     // Default: INTERNAL / Admin View (Existing Dashboard)
-    const stats = await getDashboardStats();
+    // FIX: Pass currentOrgId to getDashboardStats to respect the switcher
+    const stats = await getDashboardStats(orgId);
 
     return (
         <div className="p-8">
@@ -146,7 +164,7 @@ export default async function DashboardPage() {
                     processedCount={stats.invoicesReceipts.processing}
                     totalCount={stats.invoicesReceipts.processing + stats.invoicesReceipts.ready + 20} // Mock total
                     uploadCategory="GENERAL"
-                    viewLink="/documents"
+                    viewLink={orgId ? `/documents?orgId=${orgId}` : "/documents"}
                     colors={["#ef4444", "#fee2e2"]} // Red/Pink
                 />
                 <StatusWidget
@@ -155,7 +173,7 @@ export default async function DashboardPage() {
                     processedCount={stats.bankStatements.processing}
                     totalCount={stats.bankStatements.processing + stats.bankStatements.ready + 10} // Mock total
                     uploadCategory="STATEMENT"
-                    viewLink="/documents?category=STATEMENT"
+                    viewLink={orgId ? `/documents?category=STATEMENT&orgId=${orgId}` : "/documents?category=STATEMENT"}
                     colors={["#f59e0b", "#fef3c7"]} // Amber/Yellow
                 />
                 <StatusWidget
@@ -164,7 +182,7 @@ export default async function DashboardPage() {
                     processedCount={0}
                     totalCount={0}
                     uploadCategory="OTHER"
-                    viewLink="/documents?category=OTHER"
+                    viewLink={orgId ? `/documents?category=OTHER&orgId=${orgId}` : "/documents?category=OTHER"}
                     colors={["#3b82f6", "#dbeafe"]} // Blue/LightBlue
                 />
             </div>

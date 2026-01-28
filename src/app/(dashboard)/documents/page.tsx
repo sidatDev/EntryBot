@@ -7,9 +7,9 @@ import Link from "next/link";
 export default async function DocumentsPage({
     searchParams,
 }: {
-    searchParams: Promise<{ category?: string; assignedTo?: string; tab?: string }>;
+    searchParams: Promise<{ category?: string; assignedTo?: string; tab?: string; orgId?: string }>;
 }) {
-    const { category, assignedTo, tab = "all" } = await searchParams;
+    const { category, assignedTo, tab = "all", orgId } = await searchParams;
 
     // Determine status filter based on tab
     let statusFilter: string | undefined;
@@ -17,8 +17,8 @@ export default async function DocumentsPage({
     else if (tab === "processed") statusFilter = "PROCESSING";
     else if (tab === "reports") statusFilter = "COMPLETED";
 
-    // Fetch documents based on category and status
-    const rawDocuments = await getDocuments(category, statusFilter, assignedTo);
+    // Fetch documents based on category and status, AND orgId
+    const rawDocuments = await getDocuments(category, statusFilter, assignedTo, undefined, orgId);
 
     // Filter out Bank Statements as they have their own page
     const allDocuments = rawDocuments.filter((doc: any) =>
@@ -50,6 +50,7 @@ export default async function DocumentsPage({
         const params = new URLSearchParams();
         if (category) params.set("category", category);
         if (assignedTo) params.set("assignedTo", assignedTo);
+        if (orgId) params.set("orgId", orgId);
         params.set("tab", tabName);
         return `/documents?${params.toString()}`;
     };

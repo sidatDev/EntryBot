@@ -219,7 +219,6 @@ export default async function HubPage() {
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
                                             <span className="font-semibold text-slate-900">{org.name}</span>
-                                            <span className="text-xs text-slate-500 font-mono">{org.type.replace('_', ' ')}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">

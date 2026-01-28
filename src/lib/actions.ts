@@ -15,6 +15,30 @@ import { logDocumentActivity } from "@/lib/actions/activity";
 /*                                AUTH ACTIONS                                */
 /* -------------------------------------------------------------------------- */
 
+export async function getOwnerOrganizations() {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) throw new Error("Unauthorized");
+
+    // Fetch organizations owned by the user
+    // This allows Master Clients to see their Child Orgs
+    const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        include: {
+            ownedOrganizations: {
+                select: { id: true, name: true, type: true },
+                orderBy: { name: "asc" }
+            }
+        }
+    });
+
+    if (!user) return [];
+
+    // Also include their own "personal" org if they have one linked via organizationId?
+    // Usually Master Client has their own org as organizationId AND owns it.
+    // If they own multiple, they appear in ownedOrganizations.
+    return user.ownedOrganizations;
+}
+
 export async function registerUser(name: string, email: string, passwordHash: string) {
     if (!name || !email || !passwordHash) {
         return { success: false, error: "Missing required fields" };
@@ -54,11 +78,11 @@ export async function uploadDocument(formData: FormData) {
     const file = formData.get("file") as File;
     const userId = formData.get("userId") as string;
     const category = (formData.get("category") as string) || "GENERAL";
+    const orgIdFromForm = formData.get("organizationId") as string;
 
-    console.log("UPLOAD STARTED:", file?.name, userId);
+    console.log("UPLOAD STARTED:", file?.name, userId, orgIdFromForm);
 
     if (!file || !userId) {
-        console.error("UPLOAD ERROR: Missing file or userId");
         throw new Error("Missing file or userId");
     }
 
@@ -67,18 +91,30 @@ export async function uploadDocument(formData: FormData) {
     const allowedTypes = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
     if (!allowedTypes.includes(file.type)) throw new Error("Invalid file type");
 
-    // BILLING: Check if user's organization has credits
+    // User Check
     const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { organizationId: true, role: true }
+        include: { ownedOrganizations: { select: { id: true } } }
     });
     if (!user) throw new Error("User not found");
 
-    if (user.organizationId && user.role !== "ADMIN") {
-        // We block upload if 0 credits. Alternatively, we could block only at "Processing" stage.
-        // Decision: Block at Upload to prevent storage spam from free/expired accounts.
-        // Admins are exempt from credit checks.
-        const canUpload = await hasCredits(user.organizationId);
+    // Determine Target Org ID
+    // 1. If form has orgId, verify user owns it or it is their own org
+    // 2. Fallback to user.organizationId
+    let targetOrgId = user.organizationId;
+
+    if (orgIdFromForm) {
+        const isOwner = user.ownedOrganizations.some(o => o.id === orgIdFromForm);
+        const isMember = user.organizationId === orgIdFromForm;
+
+        if (isOwner || isMember || user.role === "ADMIN") {
+            targetOrgId = orgIdFromForm;
+        }
+    }
+
+    // BILLING: Check credits on target org
+    if (targetOrgId && user.role !== "ADMIN") {
+        const canUpload = await hasCredits(targetOrgId);
         if (!canUpload) {
             throw new Error("Insufficient credits. Please upgrade your plan.");
         }
@@ -98,7 +134,7 @@ export async function uploadDocument(formData: FormData) {
             status: "UPLOADED",
             category: category,
             source: "UPLOAD",
-            organizationId: user.organizationId
+            organizationId: targetOrgId
         }
     });
 
@@ -257,7 +293,7 @@ export async function getDocumentMetadata(documentId: string) {
 
 // --- DOCUMENTS ---
 
-export async function getDocuments(category?: string, status?: string, assignedToId?: string, unassigned?: boolean) {
+export async function getDocuments(category?: string, status?: string, assignedToId?: string, unassigned?: boolean, organizationId?: string) {
     const session = await getServerSession(authOptions);
     const userFn = session?.user;
 
@@ -265,27 +301,26 @@ export async function getDocuments(category?: string, status?: string, assignedT
         deletedAt: null,
     };
 
+    // Org Filter Logic
+    if (organizationId) {
+        where.organizationId = organizationId;
+    }
+
     // ISOLATION: 
     if (userFn?.role === "ENTRY_OPERATOR") {
-        // OPERATOR VIEW: See Unassigned (Pool) + Assigned to Me (Queue) + (Maybe my uploads if any)
-        // We use OR logic here. Since Prisma doesn't support complex OR at top level easily without full condition,
-        // we can conditionally build the filter.
-        // Actually, we can use OR.
+        // OPERATOR VIEW: See Unassigned (Pool) + Assigned to Me (Queue)
         where.OR = [
             { assignedToId: null },
             { assignedToId: userFn.id }
         ];
-        // If specific status/category query conflicts, Prisma handles AND automatically with explicit fields.
-        // But wait, if they pass `unassigned=true` (assignedToId: null), it fits.
-        // If they pass `assignedToId=me`, it fits.
-        // If they pass NOTHING (Dashboard/List), they get Pool + Queue.
     } else if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
-        // CLIENT/EMPLOYEE: Restrict to own documents
-        where.uploaderId = userFn.id;
+        // CLIENT/EMPLOYEE: Restrict to own documents OR documents in their Org
+        if (!organizationId) {
+            where.organizationId = userFn.organizationId;
+        }
     }
 
     // Filter by category if provided
-
     if (category === "SALES_INVOICE") {
         where.category = "SALES_INVOICE";
     } else if (category === "PURCHASE_INVOICE") {
@@ -772,11 +807,17 @@ export async function exportInvoicesToCSV(documentIds?: string[]) {
     return csvContent;
 }
 
-export async function getDashboardStats() {
+export async function getDashboardStats(organizationId?: string) {
     const session = await getServerSession(authOptions);
     const userFn = session?.user;
 
     const where: any = { status: { not: "DELETED" } };
+
+    if (organizationId) {
+        where.organizationId = organizationId;
+    } else if (userFn?.organizationId) {
+        where.organizationId = userFn.organizationId;
+    }
 
     // ISOLATION
     if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
