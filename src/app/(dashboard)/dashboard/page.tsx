@@ -12,9 +12,10 @@ import { authOptions } from "@/lib/auth";
 export default async function DashboardPage({
     searchParams,
 }: {
-    searchParams: Promise<{ orgId?: string }>;
+    searchParams: Promise<{ orgId?: string; view?: string }>;
 }) {
     const params = await searchParams;
+    const view = params.view;
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
 
@@ -33,31 +34,22 @@ export default async function DashboardPage({
 
     // NEW: Operator View (Prioritize over Org Check)
     if (user?.role === "ENTRY_OPERATOR") {
-        const { getDocuments } = await import("@/lib/actions");
-        const { OperatorView } = await import("@/components/dashboard/OperatorView");
+        const { OperatorOrgList } = await import("@/components/dashboard/OperatorOrgList");
 
-        // Fetch Pools
-        const unclaimed = await getDocuments(undefined, "UPLOADED", undefined, true); // Unassigned
-        // Note: for myQueue and completed, we pass user.id. 
-        // getDocuments expects string | undefined. user.id is string.
-        const myQueue = await getDocuments(undefined, "PROCESSING", user.id);
-        const completed = await getDocuments(undefined, "COMPLETED", user.id);
+        // Dynamic Title based on View
+        const title = view === "statements" ? "Bank Statement Workspaces" :
+            view === "other" ? "Document Workspaces" :
+                "Invoice Workspaces";
 
         return (
             <div className="p-8">
                 <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Operator Workspace</h1>
-                    <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <span className="text-sm text-slate-500 font-medium">Online</span>
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
+                        <p className="text-gray-500 mt-2">Select an organization to start processing</p>
                     </div>
                 </div>
-                <OperatorView
-                    unclaimedDocs={unclaimed}
-                    myQueueDocs={myQueue}
-                    completedDocs={completed}
-                    currentUser={user}
-                />
+                <OperatorOrgList view={view} />
             </div>
         );
     }

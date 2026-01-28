@@ -5,7 +5,7 @@ import { FileText, Calendar, ArrowRight, CheckSquare, Square, Download, RefreshC
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { PdfTools } from "@/components/tools/PdfTools";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { updateDocumentCategory, updateInvoicePaymentMethod, softDeleteDocument, restoreDocument, permanentDeleteDocument, exportInvoicesToCSV, updateApprovalStatus, bulkApproveDocuments, assignDocumentToMe } from "@/lib/actions";
 import { UploadModal } from "@/components/upload/UploadModal";
 import { BulkEditModal } from "./BulkEditModal";
@@ -30,6 +30,8 @@ const PAYMENT_METHODS = ["None", "Cash", "Bank Transfer", "Credit Card", "Debit 
 
 export function DocumentList({ documents, isRecycleBin = false, category, currentUser, readOnly = false }: DocumentListProps) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const orgId = searchParams.get("orgId");
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [itemsPerPage, setItemsPerPage] = useState(25);
     const [notification, setNotification] = useState<{ message: string; type: "success" | "info" } | null>(null);
@@ -272,7 +274,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                 <div className={`flex items-center gap-2 ${isRecycleBin ? 'bg-red-500' : 'bg-blue-500'} p-2 rounded-t-lg text-white`}>
                     {/* Replaced Add Files button with UploadModal trigger or integrated it */}
                     {/* Check upload permissions: Entry Operator cannot upload */}
-                    {!isRecycleBin && currentUser?.role !== "ENTRY_OPERATOR" && <UploadModal category={uploadCategory} />}
+                    {!isRecycleBin && currentUser?.role !== "ENTRY_OPERATOR" && <UploadModal category={uploadCategory} organizationId={orgId ?? undefined} />}
                     {/* We can wrap UploadModal trigger here or custom button */}
                     {!isRecycleBin && (
                         <>

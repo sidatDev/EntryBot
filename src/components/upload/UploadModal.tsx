@@ -8,9 +8,10 @@ import { UploadZone } from "./UploadZone";
 interface UploadModalProps {
     category?: string;
     label?: string;
+    organizationId?: string;
 }
 
-export function UploadModal({ category = "SALES_INVOICE", label }: UploadModalProps) {
+export function UploadModal({ category = "SALES_INVOICE", label, organizationId }: UploadModalProps) {
     const [isOpen, setIsOpen] = useState(false);
 
     // Determine button text based on category
@@ -46,7 +47,7 @@ export function UploadModal({ category = "SALES_INVOICE", label }: UploadModalPr
                 onClose={() => setIsOpen(false)}
                 title={getButtonText()}
             >
-                <UploadZone category={category} />
+                <UploadZone category={category} organizationId={organizationId} />
             </Modal>
         </>
     );

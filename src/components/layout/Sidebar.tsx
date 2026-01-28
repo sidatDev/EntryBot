@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { LayoutDashboard, FileText, Settings, LogOut, User, ShoppingCart, TrendingUp, History, Trash2, CreditCard, Files, Users, BookOpen, Percent, Shield, ChevronDown, Building, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
@@ -175,6 +175,9 @@ const mainNavItems = [
 
 export function Sidebar({ mobile = false }: { mobile?: boolean }) {
     const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const currentOrgId = searchParams.get("orgId");
+
     const { data: session } = useSession();
     const [navVisibility, setNavVisibility] = useState({
         showHub: true,
@@ -216,8 +219,74 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 
     // Filter navigation items based on permissions
     const visibleNavItems = mainNavItems.filter(item => {
+        // OPERATOR OVERRIDE: 
+        // If Operator, only show Dashboard and specific items, or remap them.
+        // User wants "Invoices" to show the Org List. 
+        // "Dashboard" is currently the Org List.
+        // So let's consolidate.
+
+        // If Operator, hide standard "Dashboard" link if we want "Invoices" to be the main entry?
+        // Or keep Dashboard and make "Invoices" also go there?
+
+        // Let's rely on standard permissions first, but override specifically for ENTRY_OPERATOR logic
+        // The permission system `getNavVisibility` already does some filtering.
+        // But for UI flow:
+        if (session?.user?.role === "ENTRY_OPERATOR") {
+            // For Operators, we want "Invoices & Receipts" to NOT be a dropdown but a direct link to /dashboard (Org List)
+            // Or simplified menu.
+            if (item.title === "Invoices & Receipts") {
+                // Modify on the fly? Better to clone.
+                // We can Just return true/false here.
+            }
+        }
+
         return navVisibility[item.permissionKey as keyof typeof navVisibility];
-    });
+    }).map(item => {
+        // OPERATOR logic (Redirects)
+        if (session?.user?.role === "ENTRY_OPERATOR") {
+            const TARGET_Route = "/dashboard";
+            const itemsToRedirect = ["Invoices & Receipts", "Bank & Card Statements", "Other Documents"];
+
+            if (itemsToRedirect.includes(item.title)) {
+                let viewParam = "all";
+                if (item.title === "Invoices & Receipts") viewParam = "invoices";
+                else if (item.title === "Bank & Card Statements") viewParam = "statements";
+                else if (item.title === "Other Documents") viewParam = "other";
+
+                return {
+                    ...item,
+                    href: `${TARGET_Route}?view=${viewParam}`,
+                    hasDropdown: false,
+                    subItems: undefined
+                };
+            }
+
+            if (item.title === "Dashboard") {
+                return null; // Hide duplicate
+            }
+        }
+
+        // CLIENT Logic (Persist Org Context)
+        // If query param exists, append it to relevant links
+        if (currentOrgId) {
+            const appendOrg = (href?: string) => {
+                if (!href) return href;
+                if (href.includes("?")) return `${href}&orgId=${currentOrgId}`;
+                return `${href}?orgId=${currentOrgId}`;
+            };
+
+            return {
+                ...item,
+                href: appendOrg(item.href),
+                subItems: item.subItems?.map(sub => ({
+                    ...sub,
+                    href: appendOrg(sub.href)!
+                }))
+            };
+        }
+
+        return item;
+    }).filter(Boolean) as typeof mainNavItems;
 
     return (
         <aside className={cn(baseClasses, mobile ? mobileClasses : desktopClasses)}>

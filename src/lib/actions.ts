@@ -169,7 +169,7 @@ export async function mergeDocuments(documentIds: string[], userId: string) {
     const documents = await prisma.document.findMany({
         where: {
             id: { in: documentIds },
-            uploaderId: userId,
+            // uploaderId: userId, // REMOVED: Operators might merge client docs
             type: "PDF",
             status: { not: "DELETED" }
         }
@@ -203,14 +203,24 @@ export async function mergeDocuments(documentIds: string[], userId: string) {
             uploaderId: userId,
             status: "UPLOADED",
             category: documents[0].category,
-            source: "MERGE_OPERATION"
+            source: "MERGE_OPERATION",
+            organizationId: documents[0].organizationId // Inherit Org ID
+        }
+    });
+
+    // Soft Delete Source Documents
+    await prisma.document.updateMany({
+        where: { id: { in: documentIds } },
+        data: {
+            status: "DELETED",
+            deletedAt: new Date()
         }
     });
 
     revalidatePath("/documents");
 }
 
-export async function splitDocument(documentId: string) {
+export async function splitDocument(documentId: string, pageIndices?: number[]) {
     const doc = await prisma.document.findUnique({ where: { id: documentId } });
     if (!doc || doc.type !== "PDF") throw new Error("Document not found or not PDF");
 
@@ -220,14 +230,24 @@ export async function splitDocument(documentId: string) {
 
     if (numPages <= 1) throw new Error("Document has only 1 page");
 
-    for (let i = 0; i < numPages; i++) {
+    // If no specific pages selected, split ALL pages into separate docs (default behavior?)
+    // Or maybe throw error? Let's assume split ALL if undefined.
+    const pagesToSplit = pageIndices && pageIndices.length > 0
+        ? pageIndices
+        : Array.from({ length: numPages }, (_, i) => i); // 0-indexed indices
+
+    for (const pageIndex of pagesToSplit) {
+        if (pageIndex < 0 || pageIndex >= numPages) continue;
+
         const subPdf = await PDFDocument.create();
-        const [page] = await subPdf.copyPages(pdf, [i]);
+        const [page] = await subPdf.copyPages(pdf, [pageIndex]);
         subPdf.addPage(page);
         const subBytes = await subPdf.save();
         const buffer = Buffer.from(subBytes);
 
-        const fileName = `${doc.name} - Page ${i + 1}`;
+        // Page number for filename (1-based)
+        const pageNum = pageIndex + 1;
+        const fileName = `${doc.name} - Page ${pageNum}`;
         const publicUrl = await uploadToS3(buffer, `${fileName}.pdf`, "application/pdf");
 
         await prisma.document.create({
@@ -239,12 +259,52 @@ export async function splitDocument(documentId: string) {
                 uploaderId: doc.uploaderId,
                 status: "UPLOADED",
                 category: doc.category,
-                source: "SPLIT_OPERATION"
+                source: "SPLIT_OPERATION",
+                organizationId: doc.organizationId
             }
         });
     }
 
     revalidatePath("/documents");
+}
+
+export async function getOperatorAnalytics() {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || session.user.role !== "ENTRY_OPERATOR") return [];
+
+    // Fetch all organizations (or those assigned to operator if we had that relation)
+    // For now, assume Operator sees ALL Client Orgs or we filter by some logic.
+    // Let's return all organizations with type=CLIENT or MASTER_CLIENT
+    const orgs = await prisma.organization.findMany({
+        where: {
+            OR: [{ type: "CLIENT" }, { type: "MASTER_CLIENT" }, { type: "SUB_CLIENT" }]
+        },
+        orderBy: { name: "asc" }
+    });
+
+    // Aggregate stats per org
+    const stats = await prisma.document.groupBy({
+        by: ["organizationId", "status"],
+        where: {
+            status: { in: ["UPLOADED", "PROCESSING", "PENDING"] },
+            organizationId: { in: orgs.map(o => o.id) }
+        },
+        _count: { id: true }
+    });
+
+    // Map counts to orgs
+    const analytics = orgs.map(org => {
+        const orgStats = stats.filter(s => s.organizationId === org.id);
+        const pendingCount = orgStats.reduce((acc, curr) => acc + curr._count.id, 0);
+
+        return {
+            id: org.id,
+            name: org.name,
+            pendingDocs: pendingCount
+        };
+    });
+
+    return analytics;
 }
 
 export async function getDocumentMetadata(documentId: string) {
@@ -866,7 +926,7 @@ export async function getDashboardStats(organizationId?: string) {
     };
 }
 
-export async function getBankStatements(status?: string) {
+export async function getBankStatements(status?: string, organizationId?: string) {
     const session = await getServerSession(authOptions);
     const userFn = session?.user;
 
@@ -875,13 +935,25 @@ export async function getBankStatements(status?: string) {
         status: { not: "DELETED" }
     };
 
+    if (organizationId) {
+        whereClause.organizationId = organizationId;
+    }
+
     // ISOLATION
+    // If Org ID is specified, we rely on that scope (assuming UI checks auth, or we should check ownership here ideally)
+    // If NO Org ID specified, default to personal uploads for Clients
     if (userFn?.role === "ENTRY_OPERATOR") {
         whereClause.OR = [
             { assignedToId: null },
             { assignedToId: userFn.id }
         ];
-    } else if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
+        // If Org ID passed, restrict to that Org as well
+        if (organizationId) {
+            whereClause.organizationId = organizationId;
+        }
+    } else if (!organizationId && userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
+        // Only restrict to uploader if NOT viewing a specific Org
+        // This allows Master Clients to view sub-org docs
         whereClause.uploaderId = userFn.id;
     }
 
@@ -927,7 +999,7 @@ export async function updateBankStatementMetadata(documentId: string, data: {
 
 /* OTHER DOCUMENTS & TAGGING ACTIONS */
 
-export async function getOtherDocuments() {
+export async function getOtherDocuments(organizationId?: string) {
     const session = await getServerSession(authOptions);
     const userFn = session?.user;
 
@@ -936,8 +1008,14 @@ export async function getOtherDocuments() {
         status: { not: "DELETED" }
     };
 
+    if (organizationId) {
+        where.organizationId = organizationId;
+    }
+
     // ISOLATION
-    if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
+    // If Org ID provided, we trust the scope (Master Client viewing sub-client).
+    // If NOT provided, restrict to uploader for non-admin users.
+    if (!organizationId && userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
         where.uploaderId = userFn.id;
     }
 

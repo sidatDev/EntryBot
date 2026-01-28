@@ -9,9 +9,10 @@ import { cn } from "@/lib/utils";
 
 interface UploadZoneProps {
     category?: string;
+    organizationId?: string;
 }
 
-export function UploadZone({ category = "SALES_INVOICE" }: UploadZoneProps) {
+export function UploadZone({ category = "SALES_INVOICE", organizationId }: UploadZoneProps) {
     const { data: session } = useSession();
     const [frontFile, setFrontFile] = useState<File | null>(null);
     const [backFile, setBackFile] = useState<File | null>(null);
@@ -87,7 +88,10 @@ export function UploadZone({ category = "SALES_INVOICE" }: UploadZoneProps) {
                     formData.append("file", file);
                     formData.append("userId", (session?.user as any)?.id);
                     formData.append("category", category);
-                    console.log("Client: Uploading...", file.name);
+                    if (organizationId) {
+                        formData.append("organizationId", organizationId);
+                    }
+                    console.log("Client: Uploading...", file.name, organizationId ? `to Org ${organizationId}` : "");
                     await uploadDocument(formData);
                     console.log("Client: Upload complete");
                 }

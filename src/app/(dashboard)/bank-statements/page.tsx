@@ -7,10 +7,10 @@ import { authOptions } from "@/lib/auth";
 export default async function BankStatementsPage({
     searchParams,
 }: {
-    searchParams: Promise<{ status?: string }>;
+    searchParams: Promise<{ status?: string; orgId?: string }>;
 }) {
-    const { status = "ALL" } = await searchParams;
-    const documents = await getBankStatements(status);
+    const { status = "ALL", orgId } = await searchParams;
+    const documents = await getBankStatements(status, orgId);
     const session = await getServerSession(authOptions);
 
     return (

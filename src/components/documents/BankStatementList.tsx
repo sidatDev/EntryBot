@@ -21,7 +21,7 @@ import Link from "next/link";
 import { UploadModal } from "@/components/upload/UploadModal";
 import { useState } from "react";
 import { updateApprovalStatus } from "@/lib/actions";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface BankStatementListProps {
     documents: any[];
@@ -32,6 +32,8 @@ interface BankStatementListProps {
 
 export function BankStatementList({ documents, isRecycleBin = false, currentUser, readOnly = false }: BankStatementListProps) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const orgId = searchParams.get("orgId");
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     // Rejection Modal State
@@ -79,7 +81,7 @@ export function BankStatementList({ documents, isRecycleBin = false, currentUser
             {/* Action Bar - Dark Blue */}
             {!readOnly && (
                 <div className="bg-blue-600 text-white px-4 py-3 flex items-center gap-3 rounded-t-xl">
-                    <UploadModal category="BANK_STATEMENT" />
+                    <UploadModal category="BANK_STATEMENT" organizationId={orgId ?? undefined} />
                     <button className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-700 rounded text-sm">
                         <Download className="h-4 w-4" /> Export CSV
                     </button>

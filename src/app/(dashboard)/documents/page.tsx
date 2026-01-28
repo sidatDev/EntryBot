@@ -11,6 +11,14 @@ export default async function DocumentsPage({
 }) {
     const { category, assignedTo, tab = "all", orgId } = await searchParams;
 
+    const session = await getServerSession(authOptions);
+
+    // OPERATOR GUARD: Operators must use the Organization List (/dashboard)
+    if (session?.user?.role === "ENTRY_OPERATOR") {
+        const { redirect } = await import("next/navigation");
+        redirect("/dashboard");
+    }
+
     // Determine status filter based on tab
     let statusFilter: string | undefined;
     if (tab === "new") statusFilter = "UPLOADED";
@@ -29,8 +37,6 @@ export default async function DocumentsPage({
     const documents = tab === "approved"
         ? allDocuments.filter((doc: any) => doc.approvalStatus === "APPROVED")
         : allDocuments;
-
-    const session = await getServerSession(authOptions);
 
     // Determine page title based on category
     const pageTitle = category === "SALES_INVOICE"

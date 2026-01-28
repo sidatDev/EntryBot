@@ -49,7 +49,7 @@ export default async function DashboardLayout({
                     ownedOrgs={ownedOrgs}
                 />
                 <HeaderAlert />
-                <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 w-full">
+                <div className="mx-auto p-4 md:p-6 lg:p-8 w-full">
                     {children}
                 </div>
             </main>
