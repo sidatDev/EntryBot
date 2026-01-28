@@ -44,6 +44,8 @@ model Document {
   
   qualityReview  QualityReview?
   
+  activities     DocumentActivity[]
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   deletedAt     DateTime?
@@ -74,6 +76,7 @@ model User {
   teams          Team[]   @relation("TeamMembers")
   
   auditLogs      AuditLog[]
+  documentActivities DocumentActivity[]
   reviews        QualityReview[]
   
   createdAt      DateTime @default(now())
@@ -330,4 +333,18 @@ model IdentityCard {
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model DocumentActivity {
+  id          String   @id @default(cuid())
+  documentId  String
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  
+  action      String   // UPLOAD, VIEW, EXTRACT, EDIT, APPROVE, REJECT, DELETE
+  details     String?  // Description of what changed
+  
+  createdAt   DateTime @default(now())
 }

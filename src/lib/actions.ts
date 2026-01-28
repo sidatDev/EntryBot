@@ -9,6 +9,7 @@ import { hasCredits, deductCredits } from "@/lib/billing";
 import { shouldFlagForQA } from "@/lib/utils";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { logDocumentActivity } from "@/lib/actions/activity";
 
 /* -------------------------------------------------------------------------- */
 /*                                AUTH ACTIONS                                */
@@ -87,7 +88,7 @@ export async function uploadDocument(formData: FormData) {
     const publicUrl = await uploadToS3(buffer, file.name, file.type);
 
     // Create DB Record
-    await prisma.document.create({
+    const newDoc = await prisma.document.create({
         data: {
             name: file.name,
             url: publicUrl,
@@ -100,6 +101,8 @@ export async function uploadDocument(formData: FormData) {
             organizationId: user.organizationId
         }
     });
+
+    await logDocumentActivity(newDoc.id, "UPLOAD", `Uploaded file: ${file.name}`);
 
     revalidatePath("/documents");
 }
@@ -558,6 +561,8 @@ export async function saveInvoice(data: {
         },
     });
 
+    await logDocumentActivity(data.documentId, "EDIT", "Invoice details saved/updated");
+
     revalidatePath("/documents");
     revalidatePath("/dashboard");
     revalidatePath(`/documents/${data.documentId}/process`);
@@ -586,6 +591,8 @@ export async function updateDocumentStatus(id: string, status: string) {
         data: { status },
     });
 
+    await logDocumentActivity(id, "STATUS_CHANGE", `Status changed to ${status}`);
+
     revalidatePath("/documents");
     revalidatePath("/dashboard");
     revalidatePath(`/documents/${id}/process`);
@@ -599,6 +606,8 @@ export async function updateApprovalStatus(id: string, status: string, reason?: 
             rejectionReason: status === "DENIED" ? reason : null
         },
     });
+
+    await logDocumentActivity(id, "APPROVAL", `Approval status update: ${status}`);
 
     revalidatePath("/documents");
     revalidatePath("/dashboard");
@@ -631,6 +640,8 @@ export async function assignDocumentToMe(documentId: string) {
             status: "PROCESSING" // Automatically lock/start processing behavior?
         }
     });
+
+    await logDocumentActivity(documentId, "ASSIGN", `User assigned themselves to document`);
     revalidatePath("/documents");
 }
 

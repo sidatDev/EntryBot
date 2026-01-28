@@ -4,6 +4,7 @@ import { DocumentViewer } from "@/components/document/DocumentViewer";
 import { InvoiceForm } from "@/components/forms/InvoiceForm";
 import { BankStatementForm } from "@/components/forms/BankStatementForm";
 import { IdentityCardForm } from "@/components/forms/IdentityCardForm";
+import { ActivityLog } from "@/components/documents/ActivityLog";
 import { updateDocumentStatus } from "@/lib/actions";
 import { CheckCircle, FileText, Landmark, User, CreditCard } from "lucide-react";
 import Link from "next/link";
@@ -128,16 +129,21 @@ export function ProcessPageClient({ document, initialInvoices, isReadOnly = fals
                         secondUrl={mode === "IDENTITY_CARD" ? document.identityCard?.cardBackUrl : undefined}
                     />
                 </div>
-                <div className="w-full lg:w-1/2 flex-1 lg:h-full bg-white overflow-hidden">
-                    {mode === "INVOICE" && (
-                        <InvoiceForm documentId={document.id} documentUrl={document.url} readOnly={isReadOnly} />
-                    )}
-                    {mode === "BANK_STATEMENT" && (
-                        <BankStatementForm documentId={document.id} documentUrl={document.url} readOnly={isReadOnly} />
-                    )}
-                    {mode === "IDENTITY_CARD" && (
-                        <IdentityCardForm documentId={document.id} documentUrl={document.url} readOnly={isReadOnly} />
-                    )}
+                <div className="w-full lg:w-1/2 flex-1 lg:h-full bg-white overflow-y-auto">
+                    <div className="p-6">
+                        {mode === "INVOICE" && (
+                            <InvoiceForm documentId={document.id} documentUrl={document.url} readOnly={isReadOnly} />
+                        )}
+                        {mode === "BANK_STATEMENT" && (
+                            <BankStatementForm documentId={document.id} documentUrl={document.url} readOnly={isReadOnly} />
+                        )}
+                        {mode === "IDENTITY_CARD" && (
+                            <IdentityCardForm documentId={document.id} documentUrl={document.url} readOnly={isReadOnly} />
+                        )}
+
+                        {/* Activity Log */}
+                        <ActivityLog documentId={document.id} />
+                    </div>
                 </div>
             </div>
         </div>
