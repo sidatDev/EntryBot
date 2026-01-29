@@ -13,17 +13,16 @@ export default async function MyClaimsPage() {
         redirect("/auth/login");
     }
 
-    // Isolate to "Assigned to Me" and "Processing"
-    // The user asked for "claimed files", which usually implies "Processing" status.
-    // We can show all assigned to me.
-    const myClaims = await getDocuments(undefined, "PROCESSING", user.id);
+    // Show Processed/Completed files instead of just active claims
+    // The user requested "files which have been process by the data entry operator"
+    const myClaims = await getDocuments(undefined, "COMPLETED", user.id);
 
     return (
         <div className="p-8">
             <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">My Claimed Tasks</h1>
-                    <p className="text-slate-500 mt-1">Documents you have claimed and are working on.</p>
+                    <h1 className="text-3xl font-bold text-gray-900">Processed Tasks</h1>
+                    <p className="text-slate-500 mt-1">History of documents you have processed.</p>
                 </div>
             </div>
 
