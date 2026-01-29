@@ -37,9 +37,7 @@ export default async function DashboardPage({
         const { OperatorOrgList } = await import("@/components/dashboard/OperatorOrgList");
 
         // Dynamic Title based on View
-        const title = view === "statements" ? "Bank Statement Workspaces" :
-            view === "other" ? "Document Workspaces" :
-                "Invoice Workspaces";
+        const title = view === "statements" ? "Bank Statement Workspaces" : view === "other" ? "Document Workspaces" : "Invoice Workspaces";
 
         return (
             <div className="p-8">

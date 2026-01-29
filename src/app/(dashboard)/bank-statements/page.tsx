@@ -4,14 +4,23 @@ import { StatusTabs } from "@/components/documents/StatusTabs";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+import { OperatorOrgList } from "@/components/dashboard/OperatorOrgList";
+
 export default async function BankStatementsPage({
     searchParams,
 }: {
     searchParams: Promise<{ status?: string; orgId?: string }>;
 }) {
     const { status = "ALL", orgId } = await searchParams;
-    const documents = await getBankStatements(status, orgId);
     const session = await getServerSession(authOptions);
+    const userRole = (session?.user as any)?.role;
+
+    // If Operator, show Organization List with "statements" context
+    if (userRole === "OPERATOR" || userRole === "DATA_ENTRY") {
+        return <OperatorOrgList view="statements" />;
+    }
+
+    const documents = await getBankStatements(status, orgId);
 
     return (
         <div className="space-y-6">
