@@ -16,6 +16,10 @@ export default async function HubPage() {
 
     const organizations = await getMyOrganizations();
 
+    // Check if user actually owns any organizations (vs just being a member)
+    const ownedOrganizations = organizations.filter(org => org.ownerId === session.user.id);
+    const isOwner = ownedOrganizations.length > 0;
+
     // Fetch aggregated stats for all owned organizations
     const orgIds = organizations.map(o => o.id);
 
@@ -69,7 +73,8 @@ export default async function HubPage() {
                     <h1 className="text-3xl font-bold text-gray-900 tracking-tight">The Hub</h1>
                     <p className="text-gray-500 mt-2">Central Data Entry Command Center</p>
                 </div>
-                <CreateOrgModal />
+                {/* Only show New Organization button for owners */}
+                {isOwner && <CreateOrgModal />}
             </div>
 
             {/* Quick Actions */}
@@ -236,7 +241,7 @@ export default async function HubPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-slate-500">
-                                        {org.users?.length || 0} Members
+                                        {(org.users?.length || 0) + 1} Members {/* +1 for owner */}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         {(orgStatsMap[org.id]?.pending || 0) > 0 ? (

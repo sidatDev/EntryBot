@@ -10,8 +10,24 @@ export async function createOrder(documentIds: string[]) {
         throw new Error("Unauthorized");
     }
 
-    const user = session.user as any;
-    const organizationId = user.organizationId;
+    // Fetch user to get their organization (either as member or owner)
+    const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        include: {
+            ownedOrganizations: true,
+            organization: true
+        }
+    });
+
+    if (!user) {
+        throw new Error("User not found");
+    }
+
+    // Get organizationId: either from membership or first owned org
+    let organizationId = user.organizationId;
+    if (!organizationId && user.ownedOrganizations.length > 0) {
+        organizationId = user.ownedOrganizations[0].id;
+    }
 
     if (!organizationId) {
         throw new Error("User must belong to an organization");
@@ -50,8 +66,24 @@ export async function getMyOrders() {
         return [];
     }
 
-    const user = session.user as any;
-    const organizationId = user.organizationId;
+    // Fetch user to get their organization (either as member or owner)
+    const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        include: {
+            ownedOrganizations: true,
+            organization: true
+        }
+    });
+
+    if (!user) {
+        return [];
+    }
+
+    // Get organizationId: either from membership or first owned org
+    let organizationId = user.organizationId;
+    if (!organizationId && user.ownedOrganizations.length > 0) {
+        organizationId = user.ownedOrganizations[0].id;
+    }
 
     if (!organizationId) {
         return [];

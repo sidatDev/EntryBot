@@ -27,6 +27,9 @@ export default async function ClientWorkspacePage({ params }: { params: Promise<
 
     if (!org) notFound();
 
+    // Check if current user is the owner of this organization
+    const isOwner = org.ownerId === session.user.id;
+
     // Stats for this specific org
     const stats = {
         pending: await prisma.document.count({ where: { organizationId: org.id, status: "UPLOADED" } }),
@@ -129,7 +132,8 @@ export default async function ClientWorkspacePage({ params }: { params: Promise<
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="font-semibold text-gray-900">Team Members</h3>
-                        <AddMemberModal organizationId={org.id} />
+                        {/* Only show Add Member button for organization owners */}
+                        {isOwner && <AddMemberModal organizationId={org.id} />}
                     </div>
                     <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
                         {org.users && org.users.length > 0 ? (

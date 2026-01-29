@@ -149,12 +149,39 @@ export async function getOperatorOrders() {
         if (totalDocs > 0 && processedDocs === totalDocs) status = "COMPLETED";
         else if (pendingDocs > 0) status = "PROCESSING";
 
+        // Determine order category based on document types
+        let orderCategory: 'invoice' | 'statement' | 'other' = 'other';
+
+        if (totalDocs > 0) {
+            const invoiceDocs = order.documents.filter(d =>
+                d.category === "SALES_INVOICE" ||
+                d.category === "PURCHASE_INVOICE" ||
+                d.category === "INVOICE"
+            ).length;
+
+            const statementDocs = order.documents.filter(d =>
+                d.category === "BANK_STATEMENT" ||
+                d.category === "STATEMENT"
+            ).length;
+
+            // Categorize based on majority document type
+            if (invoiceDocs > statementDocs && invoiceDocs > (totalDocs - invoiceDocs - statementDocs)) {
+                orderCategory = 'invoice';
+            } else if (statementDocs > invoiceDocs && statementDocs > (totalDocs - invoiceDocs - statementDocs)) {
+                orderCategory = 'statement';
+            } else {
+                orderCategory = 'other';
+            }
+        }
+
         return {
             id: order.id,
             orderNumber: order.orderNumber,
+            organizationId: order.organization.id, // Add for navigation
             clientName: order.organization.name,
             createdAt: order.createdAt,
             status: status,
+            category: orderCategory, // NEW: Order category
             stats: {
                 total: totalDocs,
                 processed: processedDocs,

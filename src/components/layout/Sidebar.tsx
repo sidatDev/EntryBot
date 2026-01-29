@@ -270,26 +270,20 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
         return navVisibility[item.permissionKey as keyof typeof navVisibility];
     }).map(item => {
         // OPERATOR logic (Redirects)
+        // OPERATOR logic
         if (session?.user?.role === "ENTRY_OPERATOR") {
-            const TARGET_Route = "/dashboard";
-            const itemsToRedirect = ["Invoices & Receipts", "Bank & Card Statements", "Other Documents"];
+            const itemsToHide = ["Invoices & Receipts", "Bank & Card Statements", "Other Documents", "My Claimed Tasks"];
 
-            if (itemsToRedirect.includes(item.title)) {
-                let viewParam = "all";
-                if (item.title === "Invoices & Receipts") viewParam = "invoices";
-                else if (item.title === "Bank & Card Statements") viewParam = "statements";
-                else if (item.title === "Other Documents") viewParam = "other";
-
-                return {
-                    ...item,
-                    href: `${TARGET_Route}?view=${viewParam}`,
-                    hasDropdown: false,
-                    subItems: undefined
-                };
+            if (itemsToHide.includes(item.title)) {
+                return null; // Hide specific document links
             }
 
             if (item.title === "Dashboard") {
-                return null; // Hide duplicate
+                return {
+                    ...item,
+                    title: "Orders", // Rename Dashboard to Orders
+                    icon: Package // Optional: Change icon to Package or keep generic
+                };
             }
         }
 

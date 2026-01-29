@@ -9,10 +9,10 @@ export default async function OperatorWorkspacePage({
     searchParams
 }: {
     params: Promise<{ orgId: string }>;
-    searchParams: Promise<{ category?: string }>;
+    searchParams: Promise<{ category?: string; orderId?: string }>; // Added orderId
 }) {
     const { orgId } = await params;
-    const { category } = await searchParams; // "INVOICE", "STATEMENT", "OTHER"
+    const { category, orderId } = await searchParams; // Extract orderId
 
     const session = await getServerSession(authOptions);
     if (!session?.user) redirect("/login");
@@ -23,6 +23,11 @@ export default async function OperatorWorkspacePage({
     // Note: getDocuments logic for Operator might restrict to assignedToId.
     // If that becomes an issue, we will need to adjust getDocuments or use a direct query.
     let documents = await getDocuments(undefined, undefined, undefined, undefined, orgId);
+
+    // CRITICAL: Filter by orderId first if specified (highest priority)
+    if (orderId) {
+        documents = documents.filter((doc: any) => doc.orderId === orderId);
+    }
 
     // Filter based on Intention (Category Param)
     if (category) {

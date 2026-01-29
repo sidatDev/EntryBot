@@ -13,7 +13,7 @@ export function OperatorWorkspace({ documents, currentUser, orgId }: { documents
             {/* 64px is approx header height. Adjust if needed. Using fixed height to enable scrolling in panes */}
 
             {/* Left Pane: List */}
-            <div className="w-[400px] flex-shrink-0 h-full border-r border-slate-200">
+            <div className="max-w-[400px] flex-1 flex-shrink-0 h-full border-r border-slate-200">
                 <OperatorDocumentList
                     documents={documents}
                     selectedDocId={selectedDoc?.id || null}
@@ -23,7 +23,7 @@ export function OperatorWorkspace({ documents, currentUser, orgId }: { documents
             </div>
 
             {/* Middle Pane: Viewer (Flexible) */}
-            <div className="flex-1 h-full min-w-0 border-r border-slate-200">
+            <div className="max-w-[700px] flex-1 h-full min-w-0 border-r border-slate-200">
                 <FileViewer
                     url={selectedDoc?.url || null}
                     documentId={selectedDoc?.id || null}
@@ -31,7 +31,7 @@ export function OperatorWorkspace({ documents, currentUser, orgId }: { documents
             </div>
 
             {/* Right Pane: Form (Fixed width like List?) */}
-            <div className={`w-[500px] flex-shrink-0 h-full overflow-y-auto bg-white transition-all duration-300 ${!selectedDoc ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+            <div className={`max-w-[600px] flex-1 flex-shrink-0 h-full overflow-y-auto bg-white transition-all duration-300 ${!selectedDoc ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
                 {selectedDoc ? (
                     <InvoiceForm
                         documentId={selectedDoc.id}

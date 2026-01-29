@@ -33,16 +33,13 @@ export async function createOrganization(
                 data: {
                     name,
                     type,
-                    ownerId: session.user.id,
+                    ownerId: session.user.id,  // User becomes OWNER of this org
                     status: "ACTIVE",
-                    users: { connect: { id: session.user.id } }
                 },
             });
 
-            await prisma.user.update({
-                where: { id: session.user.id },
-                data: { organizationId: newOrg.id }
-            });
+            // Note: User is now OWNER via ownerId, not a member via organizationId
+            // This allows users to own multiple organizations
 
             revalidatePath("/dashboard/organizations");
             return { success: true, organization: newOrg };
@@ -161,10 +158,26 @@ export async function getMyOrganizations() {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return [];
 
+    // Fetch user to get their organizationId
+    const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { organizationId: true }
+    });
+
+    // Build query to get organizations where user is either owner OR member
+    const whereCondition: any = {
+        OR: [
+            { ownerId: session.user.id }, // Organizations user owns
+        ]
+    };
+
+    // If user is a member of an organization, include it
+    if (user?.organizationId) {
+        whereCondition.OR.push({ id: user.organizationId });
+    }
+
     const orgs = await prisma.organization.findMany({
-        where: {
-            ownerId: session.user.id,
-        },
+        where: whereCondition,
         include: {
             users: true,
             _count: {

@@ -420,6 +420,7 @@ export async function getDocuments(category?: string, status?: string, assignedT
             uploaderId: true,
             assignedToId: true,
             organizationId: true,
+            orderId: true, // ADDED: Needed for order filtering
             invoices: {
                 take: 1,
                 orderBy: { createdAt: "desc" }

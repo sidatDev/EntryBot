@@ -10,9 +10,11 @@ import { getOperatorOrders } from "@/lib/operator-actions";
 interface OrderAnalytics {
     id: string;
     orderNumber: string;
+    organizationId: string; // Added for navigation
     clientName: string;
     createdAt: Date;
     status: string;
+    category: 'invoice' | 'statement' | 'other'; // NEW: Order category
     stats: {
         total: number;
         processed: number;
@@ -26,6 +28,7 @@ export function OperatorOrderList({ view }: { view?: string }) {
     const router = useRouter();
     const [orders, setOrders] = useState<OrderAnalytics[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<string>(view || 'all');
 
     useEffect(() => {
         const load = async () => {
@@ -42,25 +45,32 @@ export function OperatorOrderList({ view }: { view?: string }) {
         load();
     }, []);
 
+    // Update activeTab when view prop changes
+    useEffect(() => {
+        if (view) setActiveTab(view);
+    }, [view]);
+
     const handleOrderClick = (order: OrderAnalytics) => {
-        let query = `?orderId=${order.id}`;
-        if (view === "invoices") query += "&category=INVOICE";
-        else if (view === "statements") query += "&category=STATEMENT";
-
-        // We still route to the Org page, but with orderId context
-        // This requires getting organizationId from the order, which we didn't return explicitly in previous step but it's in logic.
-        // Wait, I didn't include orgId in getOperatorOrders return type in previous step.
-        // I need to add it or fetch it.
-        // For now, let's assume we can navigate to a generic order page or use a placeholder.
-        // Actually, the previous implementation returned { id: order.id ... }.
-        // I should return organizationId too.
-
-        // Let's rely on the route /operator/[orgId]... wait, I don't have orgId here.
-        // I must update getOperatorOrders to return organizationId to link correctly.
-
-        // Temporary: log error or handle it.
-        // I'll update getOperatorOrders next.
+        // Navigate to operator workspace (3-column view) filtered by order
+        router.push(`/operator/${order.organizationId}?orderId=${order.id}`);
     };
+
+    const handleTabChange = (tab: string) => {
+        setActiveTab(tab);
+        // Update URL without full page reload
+        const url = tab === 'all' ? '/dashboard' : `/dashboard?view=${tab}`;
+        router.push(url);
+    };
+
+    // Filter orders based on active tab
+    const filteredOrders = activeTab === 'all'
+        ? orders
+        : orders.filter(order => {
+            if (activeTab === 'invoices') return order.category === 'invoice';
+            if (activeTab === 'statements') return order.category === 'statement';
+            if (activeTab === 'other') return order.category === 'other';
+            return true;
+        });
 
     const getStatusColor = (status: string) => {
         switch (status?.toUpperCase()) {
@@ -75,6 +85,48 @@ export function OperatorOrderList({ view }: { view?: string }) {
 
     return (
         <div className="p-4 bg-slate-50 min-h-screen font-sans">
+            {/* Tabs for filtering */}
+            <div className="mb-4 border-b border-slate-200">
+                <nav className="flex gap-4">
+                    <button
+                        onClick={() => handleTabChange('all')}
+                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'all'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+                            }`}
+                    >
+                        All Orders
+                    </button>
+                    <button
+                        onClick={() => handleTabChange('invoices')}
+                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'invoices'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+                            }`}
+                    >
+                        Invoice Orders
+                    </button>
+                    <button
+                        onClick={() => handleTabChange('statements')}
+                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'statements'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+                            }`}
+                    >
+                        Statement Orders
+                    </button>
+                    <button
+                        onClick={() => handleTabChange('other')}
+                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'other'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+                            }`}
+                    >
+                        Other Orders
+                    </button>
+                </nav>
+            </div>
+
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                 <div className="flex items-center gap-3">
                     <div>
@@ -116,7 +168,7 @@ export function OperatorOrderList({ view }: { view?: string }) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                        {orders.map((order, i) => (
+                        {filteredOrders.map((order, i) => (
                             <tr
                                 key={order.id}
                                 className="bg-white hover:bg-slate-50"
@@ -146,7 +198,7 @@ export function OperatorOrderList({ view }: { view?: string }) {
                         ))}
                     </tbody>
                 </table>
-                {orders.length === 0 && (
+                {filteredOrders.length === 0 && (
                     <div className="p-12 text-center text-slate-400">
                         No active orders found.
                     </div>
