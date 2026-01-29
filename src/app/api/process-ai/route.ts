@@ -58,6 +58,8 @@ function parseDate(dateStr?: string | null): string | null {
     }
     const d = new Date(dateStr);
     if (!isNaN(d.getTime())) {
+        const year = d.getFullYear();
+        if (year < 1900 || year > 2100) return null; // Sanity check
         return d.toISOString().split('T')[0];
     }
     return null;

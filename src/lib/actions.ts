@@ -376,7 +376,7 @@ export async function getDocuments(category?: string, status?: string, assignedT
     } else if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
         // CLIENT/EMPLOYEE: Restrict to own documents OR documents in their Org
         if (!organizationId) {
-            where.organizationId = userFn.organizationId;
+            where.organizationId = (userFn as any).organizationId;
         }
     }
 
@@ -567,11 +567,31 @@ export async function saveInvoice(data: {
 
     let invoice;
 
+    // Validate Date (Check for Year anomalies)
+    const parsedDate = new Date(data.date);
+    if (isNaN(parsedDate.getTime())) {
+        throw new Error(`Invalid Date provided: ${data.date}`);
+    }
+    if (parsedDate.getFullYear() > 2100 || parsedDate.getFullYear() < 1900) {
+        throw new Error(`Date year is out of bounds (1900-2100): ${data.date}`);
+    }
+
+    let parsedDueDate = null;
+    if (data.dueDate) {
+        parsedDueDate = new Date(data.dueDate);
+        if (isNaN(parsedDueDate.getTime())) {
+            throw new Error(`Invalid Due Date provided: ${data.dueDate}`);
+        }
+        if (parsedDueDate.getFullYear() > 2100 || parsedDueDate.getFullYear() < 1900) {
+            throw new Error(`Due Date year is out of bounds (1900-2100): ${data.dueDate}`);
+        }
+    }
+
     const commonData = {
         type: data.type,
         invoiceNumber: data.invoiceNumber,
-        date: new Date(data.date),
-        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        date: parsedDate,
+        dueDate: parsedDueDate,
         supplierName: data.supplierName,
         customerName: data.customerName,
         subTotal: data.subTotal,
@@ -875,8 +895,8 @@ export async function getDashboardStats(organizationId?: string) {
 
     if (organizationId) {
         where.organizationId = organizationId;
-    } else if (userFn?.organizationId) {
-        where.organizationId = userFn.organizationId;
+    } else if ((userFn as any)?.organizationId) {
+        where.organizationId = (userFn as any).organizationId;
     }
 
     // ISOLATION

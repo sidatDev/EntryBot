@@ -80,7 +80,7 @@ export function OperatorOrgList({ view }: { view?: string }) {
         <div className="p-4 bg-slate-50 min-h-screen font-sans">
             {/* Header Toolbar */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
-                <div className="flex items-center gap-3">
+                {/* <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-600 rounded text-white">
                         <Play size={16} fill="currentColor" />
                     </div>
@@ -88,15 +88,15 @@ export function OperatorOrgList({ view }: { view?: string }) {
                         <h1 className="text-xl font-bold text-slate-800 tracking-tight">View All Entity List</h1>
                         <p className="text-xs text-slate-500">Here you can see all your entity list.</p>
                     </div>
-                </div>
+                </div> */}
 
                 <div className="flex items-center gap-2">
-                    <button className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 text-white text-xs font-semibold rounded hover:bg-slate-700 transition">
+                    {/* <button className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 text-white text-xs font-semibold rounded hover:bg-slate-700 transition">
                         <Play size={12} /> Start Service
                     </button>
                     <button className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 text-white text-xs font-semibold rounded hover:bg-slate-700 transition">
                         All Entities
-                    </button>
+                    </button> */}
                     <button
                         onClick={() => window.location.reload()}
                         className="p-1.5 bg-slate-800 text-white rounded hover:bg-slate-700 transition"
@@ -115,9 +115,9 @@ export function OperatorOrgList({ view }: { view?: string }) {
             </div>
 
             {/* Info Bar */}
-            <div className="flex justify-end text-[10px] text-slate-500 mb-2 gap-4 font-medium">
+            {/* <div className="flex justify-end text-[10px] text-slate-500 mb-2 gap-4 font-medium">
                 <span>Processing Time: Statements: 1 Hour, Invoices: 1 Hour</span>
-            </div>
+            </div> */}
 
             {/* Main Table */}
             <div className="bg-white rounded border border-slate-200 shadow-sm overflow-x-auto">
@@ -133,12 +133,12 @@ export function OperatorOrgList({ view }: { view?: string }) {
                             <th className="px-4 py-3">Oldest Doc<br />Elapsed Time</th>
                             <th className="px-4 py-3">Latest Doc<br />Elapsed Time</th>
                             <th className="px-4 py-3">Elapsed<br />Time Login</th>
-                            <th className="px-2 py-3 text-center bg-[#0284c7]">Pending<br />Invoices</th>
-                            <th className="px-2 py-3 text-center bg-[#0284c7]">Splitted<br />Invoices</th>
-                            <th className="px-2 py-3 text-center bg-[#0284c7]">Pending<br />Statements</th>
-                            <th className="px-2 py-3 text-center bg-[#0284c7]">Splitted<br />Statements</th>
-                            <th className="px-2 py-3 text-center bg-[#0284c7]">Pending<br />Documents</th>
-                            <th className="px-2 py-3 text-center bg-[#22c55e]">In Process</th>
+                            <th className="px-2 py-3 text-center">Pending<br />Invoices</th>
+                            <th className="px-2 py-3 text-center">Splitted<br />Invoices</th>
+                            <th className="px-2 py-3 text-center">Pending<br />Statements</th>
+                            <th className="px-2 py-3 text-center">Splitted<br />Statements</th>
+                            <th className="px-2 py-3 text-center">Pending<br />Documents</th>
+                            <th className="px-2 py-3 text-center">In Process</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -153,10 +153,10 @@ export function OperatorOrgList({ view }: { view?: string }) {
 
                                 {/* Credits */}
                                 <td className="px-4 py-3 text-center">
-                                    <span className="bg-red-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">{org.remainingCredits}</span>
+                                    <span className="px-4 py-3 text-center font-bold text-slate-600">{org.remainingCredits}</span>
                                 </td>
                                 <td className="px-4 py-3 text-center">
-                                    <span className="bg-red-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">{org.processingCredits}</span>
+                                    <span className="px-4 py-3 text-center font-bold text-slate-600">{org.processingCredits}</span>
                                 </td>
                                 <td className="px-4 py-3 text-center font-bold text-slate-600">{org.estimatedCredits}</td>
 
@@ -169,13 +169,13 @@ export function OperatorOrgList({ view }: { view?: string }) {
 
                                 {/* Counts - Blue/Green Blocks */}
                                 <td className="px-2 py-3 text-center">
-                                    <div className="bg-[#3b82f6] text-white py-1 rounded w-full font-bold">{org.stats.pendingInvoices}</div>
+                                    <div className="px-4 py-3 text-center font-bold text-slate-600">{org.stats.pendingInvoices}</div>
                                 </td>
                                 <td className="px-2 py-3 text-center font-bold text-slate-500">
                                     {org.stats.splittedInvoices}
                                 </td>
                                 <td className="px-2 py-3 text-center">
-                                    <div className="bg-[#86efac] text-slate-800 py-1 rounded w-full font-bold">{org.stats.pendingStatements}</div>
+                                    <div className="px-4 py-3 text-center font-bold text-slate-600">{org.stats.pendingStatements}</div>
                                 </td>
                                 <td className="px-2 py-3 text-center font-bold text-slate-500">
                                     {org.stats.splittedStatements}
@@ -184,7 +184,7 @@ export function OperatorOrgList({ view }: { view?: string }) {
                                     {org.stats.pendingDocuments}
                                 </td>
                                 <td className="px-2 py-3 text-center">
-                                    <div className="bg-[#84cc16] text-white py-1 rounded w-full font-bold">{org.stats.inProcess}</div>
+                                    <div className="px-4 py-3 text-center font-bold text-slate-600">{org.stats.inProcess}</div>
                                 </td>
                             </tr>
                         ))}

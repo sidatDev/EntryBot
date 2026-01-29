@@ -6,7 +6,7 @@ FROM node:24-alpine AS builder
 WORKDIR /app
 
 # Install dependencies and tools needed for building (including OpenSSL for Prisma)
-RUN apk add --no-cache libc6-compat python3 make g++ openssl
+RUN apk add --no-cache libc6-compat make g++ openssl
 
 # Copy package files
 COPY package.json package-lock.json ./
