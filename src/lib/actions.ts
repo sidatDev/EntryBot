@@ -193,14 +193,14 @@ export async function mergeDocuments(documentIds: string[], userId: string) {
     // Upload merged file to S3
     const publicUrl = await uploadToS3(buffer, "Merged Document.pdf", "application/pdf");
 
-    // Create new document record
+    // Create new document record (inherit uploaderId from first document so client can manage it)
     await prisma.document.create({
         data: {
             name: "Merged Document.pdf",
             url: publicUrl,
             size: pdfBytes.length,
             type: "PDF",
-            uploaderId: userId,
+            uploaderId: documents[0].uploaderId, // Inherit from original document, not current user
             status: "UPLOADED",
             category: documents[0].category,
             source: "MERGE_OPERATION",
@@ -322,6 +322,7 @@ export async function getDocumentMetadata(documentId: string) {
             createdAt: true,
             url: true, // Need URL for double check
             uploaderId: true, // Need for check
+            organizationId: true, // Need for organization check
             assignedToId: true,
             user: {
                 select: { name: true }
@@ -336,7 +337,8 @@ export async function getDocumentMetadata(documentId: string) {
     // ISOLATION CHECK
     if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
         const canAccess =
-            doc.uploaderId === userFn.id ||
+            doc.uploaderId === userFn.id || // User uploaded this document
+            (doc.organizationId && doc.organizationId === userFn.organizationId) || // Same organization (for clients)
             (userFn.role === "ENTRY_OPERATOR" && (doc.assignedToId === userFn.id || doc.assignedToId === null)); // Operator assigned or unassigned (preview)
 
         if (!canAccess) {

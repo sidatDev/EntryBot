@@ -34,20 +34,20 @@ export default async function DashboardPage({
 
     // NEW: Operator View (Prioritize over Org Check)
     if (user?.role === "ENTRY_OPERATOR") {
-        const { OperatorOrgList } = await import("@/components/dashboard/OperatorOrgList");
+        const { OperatorOrderList } = await import("@/components/dashboard/OperatorOrderList");
 
         // Dynamic Title based on View
-        const title = view === "statements" ? "Bank Statement Workspaces" : view === "other" ? "Document Workspaces" : "Invoice Workspaces";
+        const title = view === "statements" ? "Bank Statement Orders" : view === "other" ? "Document Orders" : "Invoice Orders";
 
         return (
             <div className="p-8">
                 <div className="flex justify-between items-center mb-8">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
-                        <p className="text-gray-500 mt-2">Select an organization to start processing</p>
+                        <p className="text-gray-500 mt-2">Select an order to start processing</p>
                     </div>
                 </div>
-                <OperatorOrgList view={view} />
+                <OperatorOrderList view={view} />
             </div>
         );
     }

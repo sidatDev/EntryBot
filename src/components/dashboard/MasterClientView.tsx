@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { getChildOrganizations } from "@/lib/actions/organization";
-import { BarChart3, Users, Building, ArrowUpRight } from "lucide-react";
+import { BarChart3, Users, Building, ArrowUpRight, Plus } from "lucide-react";
 import Link from "next/link";
+import { PlaceOrderModal } from "./PlaceOrderModal";
 
 // Placeholder for data fetching - in real app, we'd have a specific action for Master Client Stats
 // For now, we'll list sub-accounts and simple aggregate stats.
 
 export default function MasterClientView({ organizationId }: { organizationId: string }) {
     const [subAccounts, setSubAccounts] = useState<any[]>([]);
+    const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
 
     useEffect(() => {
         // Fetch sub-accounts
@@ -27,6 +29,21 @@ export default function MasterClientView({ organizationId }: { organizationId: s
 
     return (
         <div className="space-y-6">
+            {/* Action Bar */}
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-xl font-bold text-gray-900">Dashboard Overview</h2>
+                    <p className="text-sm text-gray-500">Monitor your account performance</p>
+                </div>
+                <button
+                    onClick={() => setIsOrderModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                >
+                    <Plus size={18} />
+                    Place Order
+                </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <div className="flex justify-between items-start">
@@ -85,6 +102,15 @@ export default function MasterClientView({ organizationId }: { organizationId: s
                     </tbody>
                 </table>
             </div>
+
+            {/* Order Modal */}
+            <PlaceOrderModal
+                isOpen={isOrderModalOpen}
+                onClose={() => setIsOrderModalOpen(false)}
+                onSuccess={() => {
+                    // Optionally refresh data or show success message
+                }}
+            />
         </div>
     );
 }

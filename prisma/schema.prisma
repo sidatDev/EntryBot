@@ -37,6 +37,10 @@ model Document {
   assignedToId  String?
   assignedTo    User?    @relation("AssignedDocuments", fields: [assignedToId], references: [id])
   
+  // New: Order-Based Workflow
+  orderId       String?
+  order         Order?   @relation(fields: [orderId], references: [id])
+
   // Extracted Entities
   invoices       Invoice[]
   bankStatement  BankStatement? // One-to-One
@@ -49,6 +53,20 @@ model Document {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   deletedAt     DateTime?
+}
+
+model Order {
+  id            String   @id @default(cuid())
+  orderNumber   String   @unique
+  status        String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, CANCELLED
+  
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  
+  documents     Document[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 
@@ -103,6 +121,7 @@ model Organization {
   
   users         User[]
   documents     Document[]
+  orders        Order[]
   teams         Team[]
   subscription  Subscription?
   auditLogs     AuditLog[]

@@ -121,3 +121,45 @@ export async function getOperatorAnalytics() {
 
     return analytics;
 }
+
+// Order-Based Workflow
+export async function getOperatorOrders() {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || (session.user.role !== "ENTRY_OPERATOR" && session.user.role !== "ADMIN" && session.user.role !== "MANAGER")) {
+        return [];
+    }
+
+    const orders = await prisma.order.findMany({
+        include: {
+            organization: true,
+            documents: {
+                select: { status: true, category: true }
+            }
+        },
+        orderBy: { createdAt: 'desc' }
+    });
+
+    return orders.map(order => {
+        const totalDocs = order.documents.length;
+        const processedDocs = order.documents.filter(d => d.status === "COMPLETED").length;
+        const pendingDocs = order.documents.filter(d => d.status === "PROCESSING" || d.status === "PENDING").length;
+
+        // Determine order status based on docs
+        let status = order.status;
+        if (totalDocs > 0 && processedDocs === totalDocs) status = "COMPLETED";
+        else if (pendingDocs > 0) status = "PROCESSING";
+
+        return {
+            id: order.id,
+            orderNumber: order.orderNumber,
+            clientName: order.organization.name,
+            createdAt: order.createdAt,
+            status: status,
+            stats: {
+                total: totalDocs,
+                processed: processedDocs,
+                pending: pendingDocs
+            }
+        };
+    });
+}

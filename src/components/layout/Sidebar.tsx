@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { LayoutDashboard, FileText, Settings, LogOut, User, ShoppingCart, TrendingUp, History, Trash2, CreditCard, Files, Users, BookOpen, Percent, Shield, ChevronDown, Building, CheckSquare } from "lucide-react";
+import { LayoutDashboard, FileText, Settings, LogOut, User, ShoppingCart, TrendingUp, History, Trash2, CreditCard, Files, Users, BookOpen, Percent, Shield, ChevronDown, Building, CheckSquare, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { getUserPermissionsAction, type UserPermissions } from "@/lib/permissions-actions";
+import { PlaceOrderModal } from "@/components/dashboard/PlaceOrderModal";
 
 // Client-side utility functions
 function hasPermission(userPermissions: UserPermissions, permission: string): boolean {
@@ -87,6 +88,30 @@ const mainNavItems = [
         href: "/my-claims",
         icon: CheckSquare,
         permissionKey: "showMyClaims"
+    },
+    {
+        title: "Place Order",
+        icon: Package,
+        permissionKey: "showHub", // Available to clients
+        hasDropdown: true,
+        isAction: true, // Custom flag to handle click actions
+        subItems: [
+            {
+                title: "Order for Invoices",
+                category: "INVOICE",
+                permissionKey: "showHub"
+            },
+            {
+                title: "Order for Statements",
+                category: "STATEMENT",
+                permissionKey: "showHub"
+            },
+            {
+                title: "Order for Others",
+                category: "OTHER",
+                permissionKey: "showHub"
+            }
+        ]
     },
     {
         title: "Invoices & Receipts",
@@ -196,6 +221,8 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
         showOrganizations: false,
     });
     const [expandedItems, setExpandedItems] = useState<string[]>(["Invoices & Receipts"]); // Default expanded
+    const [orderModalOpen, setOrderModalOpen] = useState(false);
+    const [orderCategory, setOrderCategory] = useState<"INVOICE" | "STATEMENT" | "OTHER" | undefined>(undefined);
 
     // Fetch permissions on mount and when session changes
     useEffect(() => {
@@ -345,7 +372,25 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
 
                                     {isExpanded && (
                                         <div className="ml-4 mt-1 space-y-1">
-                                            {item.subItems.map((subItem) => {
+                                            {item.subItems.map((subItem: any) => {
+                                                // If this is an action item (Place Order), handle click differently
+                                                if (item.isAction && subItem.category) {
+                                                    return (
+                                                        <button
+                                                            key={subItem.title}
+                                                            onClick={() => {
+                                                                setOrderCategory(subItem.category);
+                                                                setOrderModalOpen(true);
+                                                            }}
+                                                            className="flex items-center gap-3 px-3 py-2 text-sm font-medium transition-all duration-200 rounded-md text-slate-400 hover:bg-slate-800 hover:text-white w-full"
+                                                        >
+                                                            <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                                                            {subItem.title}
+                                                        </button>
+                                                    );
+                                                }
+
+                                                // Regular link subitem
                                                 const isSubActive = pathname.includes(subItem.href);
                                                 return (
                                                     <Link
@@ -416,6 +461,18 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
                     </button>
                 </div>
             </div>
+
+            {/* Place Order Modal */}
+            <PlaceOrderModal
+                isOpen={orderModalOpen}
+                onClose={() => setOrderModalOpen(false)}
+                onSuccess={() => {
+                    setOrderModalOpen(false);
+                    // Optionally trigger a refresh
+                }}
+                category={orderCategory}
+                organizationId={currentOrgId || undefined}
+            />
         </aside>
     );
 }
