@@ -121,17 +121,17 @@ const mainNavItems = [
         subItems: [
             {
                 title: "All Invoices",
-                href: "/documents?status=UPLOADED",
+                href: "/documents",  // Let the page redirect add orgId
                 permissionKey: "showInvoices"
             },
             {
                 title: "Sales Invoices",
-                href: "/documents?category=SALES_INVOICE",
+                href: "/documents?category=SALES_INVOICE",  // Category is fine, redirect will add orgId
                 permissionKey: "showInvoices"
             },
             {
                 title: "Purchase Invoices",
-                href: "/documents?category=PURCHASE_INVOICE",
+                href: "/documents?category=PURCHASE_INVOICE",  // Category is fine, redirect will add orgId
                 permissionKey: "showInvoices"
             }
         ]

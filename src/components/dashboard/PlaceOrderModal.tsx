@@ -25,12 +25,26 @@ export function PlaceOrderModal({ isOpen, onClose, onSuccess, category, organiza
         const loadDocuments = async () => {
             setLoading(true);
             try {
-                // Fetch documents that are not yet in an order and are uploaded/completed
-                let docs = await getDocuments(undefined, "UPLOADED");
+                // Fetch ALL documents (no status filter - we want uploaded, approved, denied, merged)
+                let docs = await getDocuments(undefined, undefined);
+                console.log("📦 All documents fetched:", docs.length, docs);
+
+                // Filter out documents that are already in an order (orderId is set)
+                docs = docs.filter((doc: any) => !doc.orderId);
+                console.log("📦 After orderId filter:", docs.length);
+
+                // Filter out PROCESSING or COMPLETED documents (those are being worked on or done)
+                docs = docs.filter((doc: any) =>
+                    doc.status === "UPLOADED" ||
+                    doc.status === "APPROVED" ||
+                    doc.status === "REJECTED"
+                );
+                console.log("📦 After status filter:", docs.length, docs.map(d => ({ name: d.name, status: d.status })));
 
                 // IMPORTANT: Filter by organizationId first (only show docs from selected org)
                 if (organizationId) {
                     docs = docs.filter((doc: any) => doc.organizationId === organizationId);
+                    console.log("📦 After org filter (orgId:", organizationId, "):", docs.length);
                 }
 
                 // Then filter by category if specified
@@ -45,6 +59,7 @@ export function PlaceOrderModal({ isOpen, onClose, onSuccess, category, organiza
                         }
                         return true;
                     });
+                    console.log("📦 After category filter:", docs.length, docs.map(d => ({ name: d.name, category: d.category })));
                 }
 
                 setDocuments(docs);

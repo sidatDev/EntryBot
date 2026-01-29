@@ -19,6 +19,28 @@ export default async function DocumentsPage({
         redirect("/dashboard");
     }
 
+    // CLIENT AUTO-FILTER: If no orgId param, redirect with first organization's ID
+    if (!orgId) {
+        const { getMyOrganizations } = await import("@/lib/actions/organization");
+        const organizations = await getMyOrganizations();
+
+        // If user has organizations, redirect with the first one's ID
+        if (organizations && organizations.length > 0) {
+            const { redirect } = await import("next/navigation");
+            const params = new URLSearchParams();
+
+            // Preserve existing query parameters
+            if (category) params.set("category", category);
+            if (assignedTo) params.set("assignedTo", assignedTo);
+            if (tab) params.set("tab", tab);
+
+            // Add first org's ID as the default
+            params.set("orgId", organizations[0].id);
+
+            redirect(`/documents?${params.toString()}`);
+        }
+    }
+
     // Determine status filter based on tab
     let statusFilter: string | undefined;
     if (tab === "new") statusFilter = "UPLOADED";
