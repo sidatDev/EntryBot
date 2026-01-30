@@ -22,6 +22,7 @@ import { UploadModal } from "@/components/upload/UploadModal";
 import { useState } from "react";
 import { updateApprovalStatus } from "@/lib/actions";
 import { useRouter, useSearchParams } from "next/navigation";
+import { FilterPanel, InvoiceFilters, initialFilters } from "./FilterPanel";
 
 interface BankStatementListProps {
     documents: any[];
@@ -35,6 +36,8 @@ export function BankStatementList({ documents, isRecycleBin = false, currentUser
     const searchParams = useSearchParams();
     const orgId = searchParams.get("orgId");
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [showFilters, setShowFilters] = useState(false);
+    const [filters, setFilters] = useState<InvoiceFilters>(initialFilters);
 
     // Rejection Modal State
     const [rejectModalOpen, setRejectModalOpen] = useState(false);
@@ -76,6 +79,84 @@ export function BankStatementList({ documents, isRecycleBin = false, currentUser
         }
     };
 
+    // Filter Logic
+    const filteredDocuments = documents.filter((doc) => {
+        // Filter by DocID
+        if (filters.docId && !doc.id.toLowerCase().includes(filters.docId.toLowerCase())) {
+            return false;
+        }
+
+        // Filter by Document Type
+        if (filters.documentType) {
+            const isPdf = doc.type === "PDF";
+            if (filters.documentType === "PDF" && !isPdf) return false;
+            if (filters.documentType === "IMAGE" && isPdf) return false;
+        }
+
+        // Filter by Supplier/Payer (using Display Name)
+        if (filters.supplierName) {
+            const name = doc.bankStatement?.displayName || doc.name || "";
+            if (!name.toLowerCase().includes(filters.supplierName.toLowerCase())) {
+                return false;
+            }
+        }
+
+        // Filter by Date Range (using startDate)
+        if (filters.dateFrom || filters.dateTo) {
+            const dateStr = doc.bankStatement?.startDate;
+            if (!dateStr) return false;
+
+            const date = new Date(dateStr);
+            if (filters.dateFrom && date < new Date(filters.dateFrom)) return false;
+            if (filters.dateTo && date > new Date(filters.dateTo)) return false;
+        }
+
+        // Filter by Amount Range
+        if (filters.amountMin || filters.amountMax) {
+            const amount = doc.bankStatement?.totalAmount || 0;
+            if (filters.amountMin && amount < parseFloat(filters.amountMin)) return false;
+            if (filters.amountMax && amount > parseFloat(filters.amountMax)) return false;
+        }
+
+        // Filter by Category
+        if (filters.category && doc.category !== filters.category) {
+            return false;
+        }
+
+        // Filter by Approval Status
+        if (filters.approvalStatus && doc.approvalStatus !== filters.approvalStatus) {
+            return false;
+        }
+
+        // Global Search
+        if (filters.searchQuery) {
+            const query = filters.searchQuery.toLowerCase();
+            const searchableFields = [
+                doc.id,
+                doc.name,
+                doc.bankStatement?.displayName,
+                doc.bankStatement?.currency,
+                doc.category,
+                doc.approvalStatus
+            ].filter(Boolean).join(" ").toLowerCase();
+
+            if (!searchableFields.includes(query)) return false;
+        }
+
+        return true;
+    });
+
+    // Extract unique display names for supplier dropdown
+    const supplierOptions = Array.from(
+        new Set(
+            documents
+                .map((doc) => doc.bankStatement?.displayName || doc.name)
+                .filter((name): name is string => Boolean(name))
+        )
+    ).sort();
+
+    // Extract unique display names for supplier dropdown (End of helper logic)
+
     return (
         <>
             {/* Action Bar - Dark Blue */}
@@ -86,7 +167,7 @@ export function BankStatementList({ documents, isRecycleBin = false, currentUser
                         onClick={() => {
                             // Simple client-side CSV export
                             const headers = ["Doc ID", "Type", "Name", "Date", "Amount", "Currency", "Status"];
-                            const rows = documents.map(doc => [
+                            const rows = (selectedIds.length > 0 ? documents.filter(d => selectedIds.includes(d.id)) : filteredDocuments).map(doc => [
                                 doc.id,
                                 doc.type,
                                 doc.bankStatement?.displayName || doc.name,
@@ -121,10 +202,14 @@ export function BankStatementList({ documents, isRecycleBin = false, currentUser
                     >
                         <RefreshCw className="h-4 w-4" /> Refresh
                     </button>
-                    {/* Filter button removed as it is not implemented */}
-                    {/* <button className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-700 rounded text-sm">
+
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`flex items-center gap-2 px-3 py-1.5 hover:bg-blue-700 rounded text-sm ${showFilters ? "bg-blue-800 ring-2 ring-blue-400" : ""}`}
+                    >
                         <Filter className="h-4 w-4" /> Filter
-                    </button> */}
+                    </button>
+
                     <button
                         onClick={async () => {
                             if (confirm(`Are you sure you want to delete ${selectedIds.length} documents?`)) {
@@ -140,6 +225,14 @@ export function BankStatementList({ documents, isRecycleBin = false, currentUser
                         <Trash2 className="h-4 w-4" /> Delete
                     </button>
                 </div>
+            )}
+
+            {!readOnly && (
+                <FilterPanel
+                    isOpen={showFilters}
+                    onFilterChange={setFilters}
+                    supplierOptions={supplierOptions}
+                />
             )}
 
             {/* Table */}
@@ -170,14 +263,14 @@ export function BankStatementList({ documents, isRecycleBin = false, currentUser
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {documents.length === 0 ? (
+                            {filteredDocuments.length === 0 ? (
                                 <tr>
                                     <td colSpan={9} className="p-8 text-center text-slate-400">
-                                        No statements found. Upload one to get started.
+                                        No statements found matching the criteria.
                                     </td>
                                 </tr>
                             ) : (
-                                documents.map((doc) => (
+                                filteredDocuments.map((doc) => (
                                     <tr key={doc.id} className="hover:bg-slate-50 group transition-colors">
                                         {!readOnly && (
                                             <td className="p-4">
@@ -327,10 +420,10 @@ export function BankStatementList({ documents, isRecycleBin = false, currentUser
                     </table>
                 </div>
 
-                {/* Pagination */}
+                {/* Pagination Stats */}
                 <div className="p-4 border-t border-slate-100 flex items-center justify-between">
                     <div className="text-sm text-slate-500">
-                        Showing <span className="font-medium">{documents.length}</span> of <span className="font-medium">{documents.length}</span>
+                        Showing <span className="font-medium">{filteredDocuments.length}</span> of <span className="font-medium">{documents.length}</span> entries
                     </div>
                 </div>
             </div>

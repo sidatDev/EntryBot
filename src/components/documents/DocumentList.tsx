@@ -50,6 +50,8 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
         searchQuery: "",
     });
 
+    const [showFilters, setShowFilters] = useState(false);
+
     // Rejection Modal State
     const [rejectModalOpen, setRejectModalOpen] = useState(false);
     const [rejectDocId, setRejectDocId] = useState<string | null>(null);
@@ -79,7 +81,9 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
             ? "PURCHASE_INVOICE"
             : category === "IDENTITY_CARD"
                 ? "IDENTITY_CARD"
-                : "SALES_INVOICE";
+                : category === "OTHER" // Added OTHER check
+                    ? "OTHER"
+                    : "SALES_INVOICE";
 
     const toggleSelection = (id: string) => {
         setSelectedIds((prev) =>
@@ -88,6 +92,17 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                 : [...prev, id]
         );
     };
+
+
+
+
+
+
+
+
+
+
+
 
     const toggleAll = () => {
         if (selectedIds.length === filteredDocuments.length) {
@@ -246,28 +261,8 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
 
             {/* Action Bar - Row 1 (Top Right Actions mostly in blueprint, but we structure for layout) */}
             {/* Action Bar - Row 1 */}
-            {!readOnly && !isRecycleBin && (
-                <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-end gap-2 bg-white p-2 rounded-lg border border-slate-200">
-                        <button
-                            onClick={async () => {
-                                if (confirm(`Approve ${selectedIds.length} documents ? `)) {
-                                    await bulkApproveDocuments(selectedIds);
-                                    setSelectedIds([]);
-                                }
-                            }}
-                            disabled={selectedIds.length === 0}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed hidden"
-                        >
-                            <CheckSquare className="h-4 w-4" /> Approve
-                        </button>
-                        <BulkEditModal
-                            selectedIds={selectedIds}
-                            onComplete={handleToolsComplete}
-                        />
-                    </div>
-                </div>
-            )}
+            {/* Action Bar - Row 1 (Top Right Actions) - REMOVED/MOVED to Blue Bar */}
+            {/* {!readOnly && !isRecycleBin && ( ... ) } */}
 
             {/* Action Bar - Row 2 */}
             {!readOnly && (
@@ -275,9 +270,29 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                     {/* Replaced Add Files button with UploadModal trigger or integrated it */}
                     {/* Check upload permissions: Entry Operator cannot upload */}
                     {!isRecycleBin && currentUser?.role !== "ENTRY_OPERATOR" && <UploadModal category={uploadCategory} organizationId={orgId ?? undefined} />}
-                    {/* We can wrap UploadModal trigger here or custom button */}
+
                     {!isRecycleBin && (
                         <>
+                            <BulkEditModal
+                                selectedIds={selectedIds}
+                                onComplete={handleToolsComplete}
+                                trigger={
+                                    <button
+                                        disabled={selectedIds.length === 0}
+                                        className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-700 rounded text-sm disabled:opacity-50"
+                                    >
+                                        <Edit className="h-4 w-4" /> Bulk Edit
+                                    </button>
+                                }
+                            />
+
+                            <button
+                                onClick={() => setShowFilters(!showFilters)}
+                                className={`flex items-center gap-2 px-3 py-1.5 hover:bg-blue-700 rounded text-sm ${showFilters ? "bg-blue-800 ring-2 ring-blue-400" : ""}`}
+                            >
+                                <Filter className="h-4 w-4" /> Filter
+                            </button>
+
                             <button
                                 onClick={handleExport}
                                 className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-700 rounded text-sm"
@@ -318,6 +333,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
             {/* Filter Panel */}
             {!isRecycleBin && !readOnly && (
                 <FilterPanel
+                    isOpen={showFilters}
                     onFilterChange={setFilters}
                     supplierOptions={supplierOptions}
                 />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -36,10 +37,11 @@ export function BulkEditModal({ selectedIds, onComplete }: BulkEditModalProps) {
                 paymentMethod: paymentMethod || undefined
             });
             setOpen(false);
+            toast.success("Documents updated successfully");
             onComplete();
         } catch (error) {
             console.error("Bulk update failed", error);
-            alert("Failed to update documents");
+            toast.error("Failed to update documents");
         } finally {
             setLoading(false);
         }

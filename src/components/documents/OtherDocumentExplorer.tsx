@@ -1,61 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Document, Tag } from "@prisma/client";
-import { DocumentListPanel } from "./DocumentListPanel";
-import { DocumentViewer } from "./DocumentViewer";
-import { DocumentPropertiesPanel } from "./DocumentPropertiesPanel";
 import { useSearchParams } from "next/navigation";
-import { UploadModal } from "@/components/upload/UploadModal";
+import { DocumentList } from "@/components/documents/DocumentList";
+import { getServerSession } from "next-auth"; // NOTE: This is client component, we pass auth via props or context usually. 
+// But DocumentList takes currentUser. We should probably get it from session in page.tsx and pass it down.
+// Wait, DocumentList is a client component but it takes currentUser as prop.
+// Check Page.tsx again.
 
-type DocumentWithTags = Document & { tags: Tag[] };
+// Actually, let's look at how DocumentsPage does it.
+// It fetches session and passes session.user.
+// So I should update OtherDocumentsPage to fetch session and pass it to OtherDocumentExplorer, 
+// and then OtherDocumentExplorer passes it to DocumentList.
 
 interface OtherDocumentExplorerProps {
-    initialDocuments: DocumentWithTags[];
+    initialDocuments: any[];
+    currentUser?: any;
 }
 
-export function OtherDocumentExplorer({ initialDocuments }: OtherDocumentExplorerProps) {
-    const searchParams = useSearchParams();
-    const orgId = searchParams.get("orgId");
-
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [documents, setDocuments] = useState(initialDocuments);
-
-    // Update local state if props change (e.g. after server action revalidation)
-    useEffect(() => {
-        setDocuments(initialDocuments);
-    }, [initialDocuments]);
-
-    const selectedDocument = documents.find(d => d.id === selectedId) || null;
-
+export function OtherDocumentExplorer({ initialDocuments, currentUser }: OtherDocumentExplorerProps) {
     return (
-        <div className="flex flex-col h-[calc(100vh-80px)] bg-slate-50 -m-6 rounded-none">
-            {/* Top Toolbar */}
-            <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-slate-200">
-                <h1 className="text-lg font-bold text-slate-800">Other Documents</h1>
-                <div className="flex items-center gap-3">
-                    <UploadModal category="OTHER" organizationId={orgId ?? undefined} />
-                </div>
+        <div className="space-y-6">
+            <div className="flex flex-col gap-2">
+                <h1 className="text-2xl font-bold text-slate-800">Other Documents</h1>
+                <p className="text-slate-500">Manage miscellaneous documents and files.</p>
             </div>
 
-            {/* 3 Pane Layout */}
-            <div className="flex-1 flex overflow-hidden">
-                {/* Left: List */}
-                <DocumentListPanel
-                    documents={documents}
-                    selectedId={selectedId}
-                    onSelect={setSelectedId}
-                />
-
-                {/* Center: Viewer */}
-                <DocumentViewer document={selectedDocument} />
-
-                {/* Right: Properties */}
-                <DocumentPropertiesPanel
-                    key={selectedId} // Force remount on selection change to sync state
-                    document={selectedDocument}
-                />
-            </div>
+            <DocumentList
+                documents={initialDocuments}
+                category="OTHER"
+                currentUser={currentUser}
+            />
         </div>
     );
 }
