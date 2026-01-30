@@ -130,10 +130,13 @@ export async function getOperatorOrders() {
     }
 
     const orders = await prisma.order.findMany({
+        where: {
+            status: { in: ["PENDING", "PROCESSING", "RETURNED", "REVIEW_PENDING", "COMPLETED"] }
+        },
         include: {
             organization: true,
             documents: {
-                select: { status: true, category: true }
+                select: { status: true, category: true, rejectionReason: true } // Added rejectionReason
             }
         },
         orderBy: { createdAt: 'desc' }
@@ -141,13 +144,24 @@ export async function getOperatorOrders() {
 
     return orders.map(order => {
         const totalDocs = order.documents.length;
-        const processedDocs = order.documents.filter(d => d.status === "COMPLETED").length;
-        const pendingDocs = order.documents.filter(d => d.status === "PROCESSING" || d.status === "PENDING").length;
+        // Count both COMPLETED and REVIEW_REQUIRED as processed for operator view
+        const processedDocs = order.documents.filter(d => d.status === "COMPLETED" || d.status === "REVIEW_REQUIRED" || d.status === "QA_REVIEW").length;
+        const pendingDocs = order.documents.filter(d => d.status === "PROCESSING" || d.status === "PENDING" || d.status === "UPLOADED").length;
 
-        // Determine order status based on docs
+        // Determine order status based on docs, BUT do not override if matches workflow states
         let status = order.status;
-        if (totalDocs > 0 && processedDocs === totalDocs) status = "COMPLETED";
-        else if (pendingDocs > 0) status = "PROCESSING";
+
+        // Only override if currently PENDING/PROCESSING and logic suggests update
+        if (status === "PENDING" || status === "PROCESSING") {
+            if (totalDocs > 0 && processedDocs === totalDocs) {
+                // Even if all processed, we don't auto-complete. We wait for submit.
+                // But maybe we show 'PROCESSING' until submitted? 
+                // Actually, let's just NOT override status if it's PENDING.
+                // Logic: If user hasn't submitted, it's PENDING or PROCESSING.
+                // Let's rely on DB status mostly.
+                if (pendingDocs < totalDocs && pendingDocs > 0) status = "PROCESSING";
+            }
+        }
 
         // Determine order category based on document types
         let orderCategory: 'invoice' | 'statement' | 'other' = 'other';

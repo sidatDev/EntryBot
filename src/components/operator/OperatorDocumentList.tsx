@@ -13,6 +13,7 @@ interface Document {
     url: string;
     updatedAt: Date;
     status: string;
+    approvalStatus: string | null;
     uploaderId: string;
 }
 
@@ -79,20 +80,26 @@ export function OperatorDocumentList({ documents, selectedDocId, onSelectDoc, us
                         {documents.map((doc) => {
                             const isSelected = selectedIds.has(doc.id);
                             const isActive = selectedDocId === doc.id;
+                            const isDisabled = doc.status === "COMPLETED" || doc.approvalStatus === "APPROVED";
 
                             return (
                                 <li
                                     key={doc.id}
-                                    onClick={() => onSelectDoc(doc)}
+                                    onClick={() => !isDisabled && onSelectDoc(doc)}
                                     className={`
-                                        relative group p-4 hover:bg-slate-50 cursor-pointer transition-colors border-l-4
-                                        ${isActive ? "bg-indigo-50 border-indigo-500" : "border-transparent"}
+                                        relative group p-4 transition-colors border-l-4
+                                        ${isDisabled
+                                            ? "bg-slate-50 border-slate-200 cursor-not-allowed opacity-60"
+                                            : "hover:bg-slate-50 cursor-pointer border-transparent"
+                                        }
+                                        ${isActive ? "bg-indigo-50 border-indigo-500" : ""}
                                     `}
                                 >
                                     <div className="flex items-start gap-3">
                                         <button
-                                            onClick={(e) => toggleSelection(e, doc.id)}
-                                            className="mt-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                                            onClick={(e) => !isDisabled && toggleSelection(e, doc.id)}
+                                            disabled={isDisabled}
+                                            className={`mt-1 transition-colors ${isDisabled ? "text-slate-300 cursor-not-allowed" : "text-slate-400 hover:text-indigo-600"}`}
                                         >
                                             {isSelected ? (
                                                 <CheckSquare className="w-5 h-5 text-indigo-600" />
@@ -103,7 +110,7 @@ export function OperatorDocumentList({ documents, selectedDocId, onSelectDoc, us
 
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between mb-1">
-                                                <p className="text-sm font-medium text-slate-900 truncate pr-2">
+                                                <p className={`text-sm font-medium truncate pr-2 ${isDisabled ? "text-slate-500" : "text-slate-900"}`}>
                                                     {doc.name}
                                                 </p>
                                                 <span className="text-[10px] text-slate-400 whitespace-nowrap">
@@ -112,11 +119,15 @@ export function OperatorDocumentList({ documents, selectedDocId, onSelectDoc, us
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${doc.status === 'UPLOADED' ? 'bg-blue-100 text-blue-700' :
-                                                        doc.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-700' :
+                                                    doc.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-700' :
+                                                        doc.status === 'RETURNED' ? 'bg-red-100 text-red-700' :
                                                             'bg-green-100 text-green-700'
                                                     }`}>
                                                     {doc.status}
                                                 </span>
+                                                {doc.approvalStatus === "REJECTED" && (
+                                                    <span className="text-[10px] text-red-600 font-medium bg-red-50 px-1 rounded">Rejected</span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

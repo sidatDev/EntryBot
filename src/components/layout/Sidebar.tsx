@@ -114,6 +114,18 @@ const mainNavItems = [
         ]
     },
     {
+        title: "Review Orders",
+        href: "/review-orders",
+        icon: CheckSquare,
+        permissionKey: "showHub" // Visible to clients
+    },
+    {
+        title: "Completed Tasks",
+        href: "/completed-tasks",
+        icon: FileText,
+        permissionKey: "showHub" // Visible to clients
+    },
+    {
         title: "Invoices & Receipts",
         icon: FileText,
         permissionKey: "showInvoices",

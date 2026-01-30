@@ -28,12 +28,13 @@ export function OperatorOrderList({ view }: { view?: string }) {
     const router = useRouter();
     const [orders, setOrders] = useState<OrderAnalytics[]>([]);
     const [loading, setLoading] = useState(true);
+    const [statusFilter, setStatusFilter] = useState<'ACTIVE' | 'REVIEW' | 'COMPLETED'>('ACTIVE');
     const [activeTab, setActiveTab] = useState<string>(view || 'all');
 
     useEffect(() => {
         const load = async () => {
             try {
-                // @ts-ignore - function exists after update
+                // @ts-ignore
                 const data = await getOperatorOrders();
                 setOrders(data);
             } catch (e) {
@@ -51,30 +52,42 @@ export function OperatorOrderList({ view }: { view?: string }) {
     }, [view]);
 
     const handleOrderClick = (order: OrderAnalytics) => {
-        // Navigate to operator workspace (3-column view) filtered by order
         router.push(`/operator/${order.organizationId}?orderId=${order.id}`);
     };
 
     const handleTabChange = (tab: string) => {
         setActiveTab(tab);
-        // Update URL without full page reload
         const url = tab === 'all' ? '/dashboard' : `/dashboard?view=${tab}`;
         router.push(url);
     };
 
-    // Filter orders based on active tab
-    const filteredOrders = activeTab === 'all'
-        ? orders
-        : orders.filter(order => {
-            if (activeTab === 'invoices') return order.category === 'invoice';
-            if (activeTab === 'statements') return order.category === 'statement';
-            if (activeTab === 'other') return order.category === 'other';
-            return true;
-        });
+    // Filter orders based on Status Filter AND Active Tab
+    const filteredOrders = orders.filter(order => {
+        // 1. Status Filter
+        let matchesStatus = false;
+        if (statusFilter === 'ACTIVE') {
+            matchesStatus = ['PENDING', 'PROCESSING', 'RETURNED'].includes(order.status);
+        } else if (statusFilter === 'REVIEW') {
+            matchesStatus = order.status === 'REVIEW_PENDING';
+        } else if (statusFilter === 'COMPLETED') {
+            matchesStatus = order.status === 'COMPLETED';
+        }
+
+        if (!matchesStatus) return false;
+
+        // 2. Category Tab Filter
+        if (activeTab === 'all') return true;
+        if (activeTab === 'invoices') return order.category === 'invoice';
+        if (activeTab === 'statements') return order.category === 'statement';
+        if (activeTab === 'other') return order.category === 'other';
+        return true;
+    });
 
     const getStatusColor = (status: string) => {
         switch (status?.toUpperCase()) {
             case 'COMPLETED': return 'text-green-600 bg-green-50';
+            case 'REVIEW_PENDING': return 'text-indigo-600 bg-indigo-50';
+            case 'RETURNED': return 'text-red-600 bg-red-50';
             case 'PROCESSING': return 'text-blue-600 bg-blue-50';
             case 'PENDING': return 'text-orange-600 bg-orange-50';
             default: return 'text-slate-600 bg-slate-50';
@@ -85,7 +98,40 @@ export function OperatorOrderList({ view }: { view?: string }) {
 
     return (
         <div className="p-4 bg-slate-50 min-h-screen font-sans">
-            {/* Tabs for filtering */}
+            {/* Status Filter Tabs */}
+            <div className="flex justify-center mb-6">
+                <div className="bg-white p-1 rounded-lg border border-slate-200 shadow-sm inline-flex">
+                    <button
+                        onClick={() => setStatusFilter('ACTIVE')}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${statusFilter === 'ACTIVE'
+                            ? 'bg-blue-600 text-white shadow'
+                            : 'text-slate-600 hover:bg-slate-50'
+                            }`}
+                    >
+                        Active Orders
+                    </button>
+                    <button
+                        onClick={() => setStatusFilter('REVIEW')}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${statusFilter === 'REVIEW'
+                            ? 'bg-indigo-600 text-white shadow'
+                            : 'text-slate-600 hover:bg-slate-50'
+                            }`}
+                    >
+                        Pending Review
+                    </button>
+                    <button
+                        onClick={() => setStatusFilter('COMPLETED')}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${statusFilter === 'COMPLETED'
+                            ? 'bg-green-600 text-white shadow'
+                            : 'text-slate-600 hover:bg-slate-50'
+                            }`}
+                    >
+                        Completed
+                    </button>
+                </div>
+            </div>
+
+            {/* Category Tabs */}
             <div className="mb-4 border-b border-slate-200">
                 <nav className="flex gap-4">
                     <button
@@ -95,7 +141,7 @@ export function OperatorOrderList({ view }: { view?: string }) {
                             : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
                             }`}
                     >
-                        All Orders
+                        All Types
                     </button>
                     <button
                         onClick={() => handleTabChange('invoices')}
@@ -104,7 +150,7 @@ export function OperatorOrderList({ view }: { view?: string }) {
                             : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
                             }`}
                     >
-                        Invoice Orders
+                        Invoices
                     </button>
                     <button
                         onClick={() => handleTabChange('statements')}
@@ -113,7 +159,7 @@ export function OperatorOrderList({ view }: { view?: string }) {
                             : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
                             }`}
                     >
-                        Statement Orders
+                        Statements
                     </button>
                     <button
                         onClick={() => handleTabChange('other')}
@@ -122,7 +168,7 @@ export function OperatorOrderList({ view }: { view?: string }) {
                             : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
                             }`}
                     >
-                        Other Orders
+                        Other
                     </button>
                 </nav>
             </div>
@@ -191,7 +237,7 @@ export function OperatorOrderList({ view }: { view?: string }) {
                                         className="text-blue-600 hover:text-blue-800 font-bold"
                                         onClick={() => handleOrderClick(order)}
                                     >
-                                        Start
+                                        {['REVIEW_PENDING', 'COMPLETED'].includes(order.status) ? "View" : "Start"}
                                     </button>
                                 </td>
                             </tr>

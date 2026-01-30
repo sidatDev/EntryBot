@@ -22,12 +22,13 @@ export default async function OperatorWorkspacePage({
     // Fetch documents
     // Note: getDocuments logic for Operator might restrict to assignedToId.
     // If that becomes an issue, we will need to adjust getDocuments or use a direct query.
-    let documents = await getDocuments(undefined, undefined, undefined, undefined, orgId);
+    let documents = await getDocuments(undefined, undefined, undefined, undefined, orgId, orderId);
 
     // CRITICAL: Filter by orderId first if specified (highest priority)
-    if (orderId) {
-        documents = documents.filter((doc: any) => doc.orderId === orderId);
-    }
+    // Server action now handles filtering and isolation bypass for Order View
+    // if (orderId) {
+    //     documents = documents.filter((doc: any) => doc.orderId === orderId);
+    // }
 
     // Filter based on Intention (Category Param)
     if (category) {
@@ -51,6 +52,7 @@ export default async function OperatorWorkspacePage({
                 documents={documents}
                 currentUser={user}
                 orgId={orgId}
+                orderId={orderId}
             />
         </div>
     );

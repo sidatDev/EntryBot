@@ -50,7 +50,7 @@ interface LineItem {
     total: number;
 }
 
-export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { documentId: string; documentUrl: string; readOnly?: boolean }) {
+export function InvoiceForm({ documentId, documentUrl, readOnly = false, onSuccess }: { documentId: string; documentUrl: string; readOnly?: boolean; onSuccess?: (data: any) => void }) {
     const router = useRouter();
     const [saving, setSaving] = useState(false);
     const [processingAi, setProcessingAi] = useState(false);
@@ -208,7 +208,21 @@ export function InvoiceForm({ documentId, documentUrl, readOnly = false }: { doc
                 lineItems: lineItems.map(({ id, ...item }) => item),
             });
 
-            if (saveAndNew) {
+            if (onSuccess) {
+                onSuccess(data);
+                if (saveAndNew) {
+                    form.reset({
+                        type: data.type,
+                        currency: "USD",
+                        invoiceCurrency: "USD",
+                        exchangeRate: 1,
+                        vatRate: 0,
+                        netAmount: 0,
+                        contactName: ""
+                    });
+                    setLineItems([]);
+                }
+            } else if (saveAndNew) {
                 form.reset({
                     type: data.type,
                     currency: "USD",

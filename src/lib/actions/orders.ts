@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -100,4 +101,126 @@ export async function getMyOrders() {
     });
 
     return orders;
+}
+
+export async function submitOrderForReview(orderId: string) {
+    console.log("Submitting order for review:", orderId);
+    const session = await getServerSession(authOptions);
+    if (!session?.user) throw new Error("Unauthorized");
+
+    try {
+        const order = await prisma.order.update({
+            where: { id: orderId },
+            data: { status: "REVIEW_PENDING" }
+        });
+        console.log("Order updated successfully:", order);
+    } catch (error) {
+        console.error("Error updating order status:", error);
+        throw error;
+    }
+}
+
+export async function reviewOrder(orderId: string, action: "APPROVE_ALL" | "REJECT_PARTIAL", rejectionDetails?: { documentId: string, reason: string }[]) {
+    console.log(`Reviewing order ${orderId} with action ${action}`);
+    const session = await getServerSession(authOptions);
+    if (!session?.user) throw new Error("Unauthorized");
+
+    try {
+        const order = await prisma.order.findUnique({
+            where: { id: orderId },
+            include: { documents: true }
+        });
+
+        if (!order) throw new Error("Order not found");
+
+        if (action === "APPROVE_ALL") {
+            console.log("Approving all documents for order:", orderId);
+            // Approve all documents
+            await prisma.document.updateMany({
+                where: { orderId: orderId },
+                data: {
+                    approvalStatus: "APPROVED",
+                    status: "COMPLETED"
+                }
+            });
+
+            // Complete the order
+            await prisma.order.update({
+                where: { id: orderId },
+                data: { status: "COMPLETED" }
+            });
+            console.log("Order marked as COMPLETED");
+
+        } else if (action === "REJECT_PARTIAL" && rejectionDetails) {
+            console.log("Processing partial rejection for order:", orderId);
+            // Handle rejections
+            for (const reject of rejectionDetails) {
+                await prisma.document.update({
+                    where: { id: reject.documentId },
+                    data: {
+                        approvalStatus: "REJECTED",
+                        rejectionReason: reject.reason,
+                        status: "RETURNED"
+                    }
+                });
+            }
+
+            // Approve remaining documents
+            const rejectedIds = rejectionDetails.map(r => r.documentId);
+            await prisma.document.updateMany({
+                where: {
+                    orderId: orderId,
+                    id: { notIn: rejectedIds }
+                },
+                data: {
+                    approvalStatus: "APPROVED",
+                    status: "COMPLETED"
+                }
+            });
+
+            // Send order back to operator
+            await prisma.order.update({
+                where: { id: orderId },
+                data: { status: "RETURNED" }
+            });
+            console.log("Order marked as RETURNED");
+        }
+
+        revalidatePath("/review-orders");
+        revalidatePath(`/review-orders/${orderId}`);
+        revalidatePath("/completed-tasks");
+        revalidatePath("/dashboard"); // Also revalidate operator view just in case
+
+    } catch (error) {
+        console.error("Error in reviewOrder:", error);
+        throw error;
+    }
+}
+
+export async function getReviewOrders(organizationIds: string[]) {
+    return await prisma.order.findMany({
+        where: {
+            organizationId: { in: organizationIds },
+            status: "REVIEW_PENDING"
+        },
+        include: {
+            organization: true,
+            documents: true
+        },
+        orderBy: { createdAt: "asc" } // Oldest first for review
+    });
+}
+
+export async function getCompletedOrders(organizationIds: string[]) {
+    return await prisma.order.findMany({
+        where: {
+            organizationId: { in: organizationIds },
+            status: "COMPLETED"
+        },
+        include: {
+            organization: true,
+            documents: true
+        },
+        orderBy: { updatedAt: "desc" }
+    });
 }

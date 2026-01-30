@@ -204,7 +204,8 @@ export async function mergeDocuments(documentIds: string[], userId: string) {
             status: "UPLOADED",
             category: documents[0].category,
             source: "MERGE_OPERATION",
-            organizationId: documents[0].organizationId // Inherit Org ID
+            organizationId: documents[0].organizationId, // Inherit Org ID
+            orderId: documents[0].orderId // Inherit Order ID
         }
     });
 
@@ -260,7 +261,8 @@ export async function splitDocument(documentId: string, pageIndices?: number[]) 
                 status: "UPLOADED",
                 category: doc.category,
                 source: "SPLIT_OPERATION",
-                organizationId: doc.organizationId
+                organizationId: doc.organizationId,
+                orderId: doc.orderId // Inherit Order ID
             }
         });
     }
@@ -355,7 +357,7 @@ export async function getDocumentMetadata(documentId: string) {
 
 // --- DOCUMENTS ---
 
-export async function getDocuments(category?: string, status?: string, assignedToId?: string, unassigned?: boolean, organizationId?: string) {
+export async function getDocuments(category?: string, status?: string, assignedToId?: string, unassigned?: boolean, organizationId?: string, orderId?: string) {
     const session = await getServerSession(authOptions);
     const userFn = session?.user;
 
@@ -368,13 +370,20 @@ export async function getDocuments(category?: string, status?: string, assignedT
         where.organizationId = organizationId;
     }
 
+    if (orderId) {
+        where.orderId = orderId;
+    }
+
     // ISOLATION: 
     if (userFn?.role === "ENTRY_OPERATOR") {
-        // OPERATOR VIEW: See Unassigned (Pool) + Assigned to Me (Queue)
-        where.OR = [
-            { assignedToId: null },
-            { assignedToId: userFn.id }
-        ];
+        // If viewing a specific order, allow seeing all documents in it (collaboration/review)
+        // Otherwise, restrict to own queue
+        if (!orderId) {
+            where.OR = [
+                { assignedToId: null },
+                { assignedToId: userFn.id }
+            ];
+        }
     } else if (userFn && userFn.role !== "ADMIN" && userFn.role !== "MANAGER") {
         // CLIENT/EMPLOYEE: Restrict to own documents OR documents in their Org
         if (!organizationId) {
@@ -575,8 +584,16 @@ export async function saveInvoice(data: {
     if (isNaN(parsedDate.getTime())) {
         throw new Error(`Invalid Date provided: ${data.date}`);
     }
+
+    // Auto-correct common typo (5-digit year, e.g. 20202 -> 2020)
+    if (parsedDate.getFullYear() > 2100 && parsedDate.getFullYear().toString().length === 5) {
+        const fixedYear = parseInt(parsedDate.getFullYear().toString().slice(0, 4));
+        parsedDate.setFullYear(fixedYear);
+        console.log(`Auto-corrected year from ${data.date} to ${parsedDate.toISOString()}`);
+    }
+
     if (parsedDate.getFullYear() > 2100 || parsedDate.getFullYear() < 1900) {
-        throw new Error(`Date year is out of bounds (1900-2100): ${data.date}`);
+        throw new Error(`Date year is out of bounds (1900-2100). Received: ${parsedDate.getFullYear()}`);
     }
 
     let parsedDueDate = null;
@@ -664,11 +681,15 @@ export async function saveInvoice(data: {
     let nextStatus = doc?.status;
     if (doc?.status === "UPLOADED" || doc?.status === "PENDING" || doc?.status === "PROCESSING") {
         const isQA = shouldFlagForQA(10);
-        nextStatus = isQA ? "QA_REVIEW" : "COMPLETED";
+        nextStatus = isQA ? "QA_REVIEW" : "REVIEW_REQUIRED";
     } else {
         // If already Completed/Saved, we stick to COMPLETED or SAVED unless review forces otherwise
-        // Use COMPLETED as default "Done" state for updates
-        nextStatus = "COMPLETED";
+        // Use REVIEW_REQUIRED as default "Done" state for updates by operators
+        // Unless it was already APPROVED by client?
+        // If status was RETURNED, we should move it to REVIEW_REQUIRED again.
+        if (doc?.status === "RETURNED" || doc?.status === "COMPLETED") {
+            nextStatus = "REVIEW_REQUIRED";
+        }
     }
 
     // Update document status
