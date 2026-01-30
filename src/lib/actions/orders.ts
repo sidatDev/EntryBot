@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export async function createOrder(documentIds: string[]) {
+export async function createOrder(documentIds: string[], organizationId?: string) {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
         throw new Error("Unauthorized");
@@ -24,13 +24,26 @@ export async function createOrder(documentIds: string[]) {
         throw new Error("User not found");
     }
 
-    // Get organizationId: either from membership or first owned org
-    let organizationId = user.organizationId;
-    if (!organizationId && user.ownedOrganizations.length > 0) {
-        organizationId = user.ownedOrganizations[0].id;
+    // Determine target Organization ID
+    let targetOrgId = organizationId;
+
+    if (targetOrgId) {
+        // Verify user belongs to this org
+        const isOwner = user.ownedOrganizations.some(org => org.id === targetOrgId);
+        const isMember = user.organizationId === targetOrgId;
+
+        if (!isOwner && !isMember) {
+            throw new Error("User does not have access to this organization");
+        }
+    } else {
+        // Fallback: Get organizationId from membership or first owned org
+        targetOrgId = user.organizationId;
+        if (!targetOrgId && user.ownedOrganizations.length > 0) {
+            targetOrgId = user.ownedOrganizations[0].id;
+        }
     }
 
-    if (!organizationId) {
+    if (!targetOrgId) {
         throw new Error("User must belong to an organization");
     }
 
@@ -42,7 +55,7 @@ export async function createOrder(documentIds: string[]) {
     const order = await prisma.order.create({
         data: {
             orderNumber,
-            organizationId,
+            organizationId: targetOrgId,
             status: "PENDING",
         },
     });
@@ -51,7 +64,7 @@ export async function createOrder(documentIds: string[]) {
     await prisma.document.updateMany({
         where: {
             id: { in: documentIds },
-            organizationId, // Ensure documents belong to this org
+            organizationId: targetOrgId, // Ensure documents belong to this org
         },
         data: {
             orderId: order.id,

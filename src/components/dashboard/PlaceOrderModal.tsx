@@ -92,7 +92,7 @@ export function PlaceOrderModal({ isOpen, onClose, onSuccess, category, organiza
 
         setSubmitting(true);
         try {
-            await createOrder(Array.from(selectedDocs));
+            await createOrder(Array.from(selectedDocs), organizationId);
             toast.success("Order placed successfully!");
             onSuccess();
             onClose();
