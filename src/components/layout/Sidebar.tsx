@@ -114,6 +114,12 @@ const mainNavItems = [
         ]
     },
     {
+        title: "Active Orders",
+        href: "/active-orders",
+        icon: History, // Using a clock/history icon for active/pending
+        permissionKey: "showHub" // Visible to clients
+    },
+    {
         title: "Review Orders",
         href: "/review-orders",
         icon: CheckSquare,

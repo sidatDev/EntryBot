@@ -237,3 +237,19 @@ export async function getCompletedOrders(organizationIds: string[]) {
         orderBy: { updatedAt: "desc" }
     });
 }
+
+export async function getActiveOrders(organizationIds: string[]) {
+    return await prisma.order.findMany({
+        where: {
+            organizationId: { in: organizationIds },
+            status: { in: ["PENDING", "PROCESSING", "RETURNED"] }
+        },
+        include: {
+            organization: true,
+            documents: {
+                select: { id: true, name: true, status: true, category: true }
+            }
+        },
+        orderBy: { createdAt: "desc" }
+    });
+}
