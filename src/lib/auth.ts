@@ -31,6 +31,11 @@ export const authOptions: NextAuthOptions = {
                     where: {
                         email: credentials.email,
                     },
+                    include: {
+                        customRole: {
+                            select: { name: true }
+                        }
+                    }
                 });
 
                 if (!user) {
@@ -52,6 +57,9 @@ export const authOptions: NextAuthOptions = {
                     email: user.email,
                     name: user.name,
                     role: user.role,
+                    organizationId: user.organizationId,
+                    customRoleId: user.customRoleId,
+                    customRoleName: user.customRole?.name,
                 };
             },
         }),
@@ -62,18 +70,28 @@ export const authOptions: NextAuthOptions = {
                 ...session,
                 user: {
                     ...session.user,
-                    id: token.id,
-                    role: token.role,
+                    id: token.id as string,
+                    role: token.role as string,
+                    organizationId: token.organizationId as string | null,
+                    customRoleId: token.customRoleId as string | null,
+                    customRoleName: token.customRoleName as string | null,
                 },
             };
         },
-        async jwt({ token, user }) {
+        async jwt({ token, user, trigger, session }) {
             if (user) {
                 return {
                     ...token,
                     id: user.id,
                     role: (user as any).role,
+                    organizationId: (user as any).organizationId,
+                    customRoleId: (user as any).customRoleId,
+                    customRoleName: (user as any).customRoleName,
                 };
+            }
+            // Support updating session on client side
+            if (trigger === "update" && session) {
+                return { ...token, ...session.user };
             }
             return token;
         },

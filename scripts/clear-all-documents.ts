@@ -3,9 +3,14 @@
  * WARNING: This will delete ALL documents and cannot be undone!
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../generated/client';
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+const pool = new pg.Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function clearAllDocuments() {
     try {
@@ -33,7 +38,7 @@ async function clearAllDocuments() {
         console.log(`   Deleted ${idCards.count} identity cards`);
 
         console.log('🗑️  Deleting activity logs...');
-        const activities = await prisma.activity.deleteMany({});
+        const activities = await prisma.documentActivity.deleteMany({});
         console.log(`   Deleted ${activities.count} activity logs`);
 
         console.log('🗑️  Deleting orders...');

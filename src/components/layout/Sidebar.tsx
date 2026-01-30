@@ -311,10 +311,15 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
             return {
                 ...item,
                 href: appendOrg(item.href),
-                subItems: item.subItems?.map(sub => ({
-                    ...sub,
-                    href: appendOrg(sub.href)!
-                }))
+                subItems: item.subItems?.map(sub => {
+                    if ('href' in sub && sub.href) {
+                        return {
+                            ...sub,
+                            href: appendOrg(sub.href)!
+                        };
+                    }
+                    return sub;
+                })
             };
         }
 
@@ -346,7 +351,7 @@ export function Sidebar({ mobile = false }: { mobile?: boolean }) {
                         if (item.hasDropdown && item.subItems) {
                             const isExpanded = expandedItems.includes(item.title);
                             const isAnySubItemActive = item.subItems.some(subItem =>
-                                pathname.includes(subItem.href)
+                                'href' in subItem && subItem.href && pathname.includes(subItem.href)
                             );
 
                             return (
