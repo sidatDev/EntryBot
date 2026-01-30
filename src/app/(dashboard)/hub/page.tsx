@@ -78,13 +78,13 @@ export default async function HubPage() {
             </div>
 
             {/* Quick Actions */}
-            <div>
+            {/* <div>
                 <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
                     <Upload className="mr-2 h-5 w-5 text-gray-500" />
                     Quick Upload
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Invoice Upload */}
+                 
                     <Card className="bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                         <CardHeader className="pb-3 pt-5">
                             <CardTitle className="text-md font-medium text-slate-800 flex items-center gap-2">
@@ -102,7 +102,7 @@ export default async function HubPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Bank Statement Upload */}
+                   
                     <Card className="bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                         <CardHeader className="pb-3 pt-5">
                             <CardTitle className="text-md font-medium text-slate-800 flex items-center gap-2">
@@ -120,7 +120,7 @@ export default async function HubPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Other Documents Upload */}
+                 
                     <Card className="bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                         <CardHeader className="pb-3 pt-5">
                             <CardTitle className="text-md font-medium text-slate-800 flex items-center gap-2">
@@ -138,7 +138,7 @@ export default async function HubPage() {
                         </CardContent>
                     </Card>
                 </div>
-            </div>
+            </div> */}
 
             {/* Stats Row: Queue & Efficiency */}
             {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

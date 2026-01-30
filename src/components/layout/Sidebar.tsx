@@ -131,11 +131,11 @@ const mainNavItems = [
         permissionKey: "showInvoices",
         hasDropdown: true,
         subItems: [
-            {
-                title: "All Invoices",
-                href: "/documents",  // Let the page redirect add orgId
-                permissionKey: "showInvoices"
-            },
+            // {
+            //     title: "All Invoices",
+            //     href: "/documents", 
+            //     permissionKey: "showInvoices"
+            // },
             {
                 title: "Sales Invoices",
                 href: "/documents?category=SALES_INVOICE",  // Category is fine, redirect will add orgId

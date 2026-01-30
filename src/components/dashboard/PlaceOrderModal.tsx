@@ -25,28 +25,27 @@ export function PlaceOrderModal({ isOpen, onClose, onSuccess, category, organiza
         const loadDocuments = async () => {
             setLoading(true);
             try {
-                // Fetch ALL documents (no status filter - we want uploaded, approved, denied, merged)
-                let docs = await getDocuments(undefined, undefined);
-                console.log("📦 All documents fetched:", docs.length, docs);
+                // Fetch documents with filters passed directly to server for speed
+                // getDocuments signature: category, status, assignedToId, unassigned, organizationId, orderId
+                let docs = await getDocuments(
+                    undefined, // category (we do client side strict filter or improve this later)
+                    undefined, // status
+                    undefined, // assignedToId
+                    undefined, // unassigned
+                    organizationId // organizationId (FILTER AT DB LEVEL)
+                );
+                console.log("📦 Documents fetched from server (filtered by org):", docs.length);
 
-                // Filter out documents that are already in an order (orderId is set)
+                // Filter out documents that are already in an order
                 docs = docs.filter((doc: any) => !doc.orderId);
-                console.log("📦 After orderId filter:", docs.length);
 
-                // Filter out PROCESSING or COMPLETED documents (those are being worked on or done)
+                // Filter by valid status for ordering
                 docs = docs.filter((doc: any) =>
                     doc.status === "UPLOADED" ||
-                    doc.status === "PENDING" || // Allow default schema status
+                    doc.status === "PENDING" ||
                     doc.status === "APPROVED" ||
                     doc.status === "REJECTED"
                 );
-                console.log("📦 After status filter:", docs.length, docs.map(d => ({ name: d.name, status: d.status })));
-
-                // IMPORTANT: Filter by organizationId first (only show docs from selected org)
-                if (organizationId) {
-                    docs = docs.filter((doc: any) => doc.organizationId === organizationId);
-                    console.log("📦 After org filter (orgId:", organizationId, "):", docs.length);
-                }
 
                 // Then filter by category if specified
                 if (category) {
