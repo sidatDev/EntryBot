@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { reviewOrder } from "@/lib/actions/orders";
-import { FileText, CheckCircle, XCircle, AlertCircle, ExternalLink, ChevronLeft, Eye } from "lucide-react";
+import { FileText, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { FileViewer } from "@/components/operator/FileViewer";
+import { InvoiceForm } from "@/components/forms/InvoiceForm";
+import { Badge } from "@/components/ui/badge";
 
 interface Document {
     id: string;
@@ -17,6 +20,7 @@ interface Document {
     type: string;
     approvalStatus: string | null;
     rejectionReason: string | null;
+    updatedAt: Date;
 }
 
 interface Order {
@@ -32,6 +36,7 @@ interface Order {
 export function OrderReviewInterface({ order }: { order: Order }) {
     const router = useRouter();
     const [submitting, setSubmitting] = useState(false);
+    const [selectedDocId, setSelectedDocId] = useState<string | null>(order.documents[0]?.id || null);
 
     // Track decisions: Map documentId to decision
     const [decisions, setDecisions] = useState<Record<string, { status: 'APPROVED' | 'REJECTED', reason?: string }>>(() => {
@@ -48,8 +53,7 @@ export function OrderReviewInterface({ order }: { order: Order }) {
     const [rejectingDocId, setRejectingDocId] = useState<string | null>(null);
     const [reasonInput, setReasonInput] = useState("");
 
-    // For file preview modal
-    const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
+    const selectedDoc = order.documents.find(d => d.id === selectedDocId);
 
     const handleOpenReject = (docId: string) => {
         setRejectingDocId(docId);
@@ -87,7 +91,6 @@ export function OrderReviewInterface({ order }: { order: Order }) {
     const handleSubmitReview = async () => {
         try {
             setSubmitting(true);
-            const decisionValues = Object.values(decisions);
             const rejections = Object.entries(decisions)
                 .filter(([_, d]) => d.status === 'REJECTED')
                 .map(([id, d]) => ({ documentId: id, reason: d.reason || "" }));
@@ -117,38 +120,46 @@ export function OrderReviewInterface({ order }: { order: Order }) {
     const approvedCount = Object.values(decisions).filter(d => d.status === 'APPROVED').length;
     const rejectedCount = Object.values(decisions).filter(d => d.status === 'REJECTED').length;
 
+    // Derived state for current doc
+    const currentDecision = selectedDocId ? decisions[selectedDocId] : null;
+    const isCurrentApproved = currentDecision?.status === 'APPROVED';
+    const isCurrentRejected = currentDecision?.status === 'REJECTED';
+
     return (
-        <div className="flex flex-col h-[calc(100vh-64px)]">
+        <div className="flex flex-col h-[calc(100vh-64px)] bg-white">
             {/* Header */}
-            <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-                <div>
-                    <div className="flex items-center text-sm text-slate-500 mb-1">
-                        <button onClick={() => router.back()} className="flex items-center hover:text-slate-800 transition-colors mr-2">
-                            <ChevronLeft className="h-4 w-4 mr-1" />
-                            Back to List
-                        </button>
-                        <span>•</span>
-                        <span className="ml-2">{format(new Date(order.createdAt), "MMM d, yyyy")}</span>
-                    </div>
-                    <h1 className="text-xl font-bold flex items-center gap-2">
-                        Review Order <span className="text-blue-600">{order.orderNumber}</span>
-                    </h1>
-                </div>
+            <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between flex-shrink-0 z-20">
                 <div className="flex items-center gap-4">
-                    <div className="text-right">
-                        <div className="text-sm font-medium text-slate-900">Summary</div>
+                    <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                        <ChevronLeft className="h-5 w-5 text-slate-600" />
+                    </button>
+                    <div>
+                        <h1 className="text-lg font-bold flex items-center gap-2">
+                            Review Order <span className="text-blue-600">{order.orderNumber}</span>
+                        </h1>
                         <div className="text-xs text-slate-500">
-                            <span className="text-green-600 font-medium">{approvedCount} Approved</span>
-                            {" • "}
-                            <span className="text-red-600 font-medium">{rejectedCount} Rejected</span>
-                            {" • "}
-                            <span className="text-slate-400">{totalDocs - handledDocs} Pending</span>
+                            {format(new Date(order.createdAt), "MMM d, yyyy")} • {totalDocs} Documents
                         </div>
                     </div>
+                </div>
+
+                <div className="flex items-center gap-6">
+                    <div className="text-right flex items-center gap-3 text-xs">
+                        <div className="flex flex-col items-end">
+                            <span className="text-slate-500 font-medium uppercase tracking-wider text-[10px]">Progress</span>
+                            <span className="font-semibold text-slate-700">{handledDocs} / {totalDocs} Reviewed</span>
+                        </div>
+                        <div className="h-8 w-[1px] bg-slate-200"></div>
+                        <div className="flex gap-2">
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{approvedCount} Approved</Badge>
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">{rejectedCount} Rejected</Badge>
+                        </div>
+                    </div>
+
                     <button
                         onClick={handleSubmitReview}
                         disabled={!isComplete || submitting}
-                        className={`px-5 py-2.5 rounded-lg text-sm font-medium text-white shadow-sm transition-all transform active:scale-95 ${!isComplete
+                        className={`px-5 py-2 rounded-lg text-sm font-medium text-white shadow-sm transition-all transform active:scale-95 ${!isComplete
                             ? "bg-slate-300 cursor-not-allowed"
                             : rejectedCount > 0
                                 ? "bg-amber-600 hover:bg-amber-700"
@@ -163,96 +174,111 @@ export function OrderReviewInterface({ order }: { order: Order }) {
                 </div>
             </header>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
-                <div className="max-w-5xl mx-auto grid gap-4">
-                    {order.documents.map(doc => {
-                        const decision = decisions[doc.id];
-                        const isApproved = decision?.status === 'APPROVED';
-                        const isRejected = decision?.status === 'REJECTED';
+            {/* Main Content - 3 Panes */}
+            <div className="flex-1 flex overflow-hidden">
 
-                        return (
-                            <div
-                                key={doc.id}
-                                className={`bg-white rounded-xl border p-4 transition-all ${isRejected
-                                    ? "border-red-200 ring-1 ring-red-100 bg-red-50/10"
-                                    : isApproved
-                                        ? "border-green-200 ring-1 ring-green-100 bg-green-50/10"
-                                        : "border-slate-200 hover:border-blue-300"
-                                    }`}
-                            >
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-start gap-4">
-                                        <div className="h-10 w-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                            <FileText className="h-5 w-5 text-slate-500" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-medium text-slate-900">{doc.name}</h3>
-                                            <div className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-                                                <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 uppercase text-[10px] tracking-wide font-semibold">
-                                                    {doc.category || "Uncategorized"}
-                                                </span>
-                                                {/* View Button */}
-                                                <button
-                                                    onClick={() => setPreviewDoc(doc)}
-                                                    className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                                                >
-                                                    <Eye className="h-3 w-3" /> Preview
-                                                </button>
-                                            </div>
+                {/* 1. Left Sidebar: Document List */}
+                <div className="w-[300px] border-r border-slate-200 bg-white flex flex-col flex-shrink-0 z-10">
+                    <div className="p-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Documents</span>
+                        <Filter className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <div className="overflow-y-auto flex-1">
+                        {order.documents.map(doc => {
+                            const decision = decisions[doc.id];
+                            const isApproved = decision?.status === 'APPROVED';
+                            const isRejected = decision?.status === 'REJECTED';
+                            const isSelected = selectedDocId === doc.id;
 
-                                            {/* Extracted Data Snippet (Optional) */}
-                                            {doc.extractedText && (
-                                                <div className="mt-2 text-xs text-slate-400 line-clamp-2 max-w-md bg-slate-50 p-2 rounded">
-                                                    {doc.extractedText.substring(0, 100)}...
-                                                </div>
-                                            )}
-
-                                            {/* Rejection Reason Display */}
-                                            {isRejected && (
-                                                <div className="mt-3 bg-red-50 text-red-700 text-sm p-3 rounded-lg flex items-start gap-2">
-                                                    <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                                                    <div>
-                                                        <span className="font-semibold block text-xs uppercase tracking-wide opacity-75">Rejection Reason</span>
-                                                        {decisions[doc.id].reason}
-                                                    </div>
-                                                </div>
-                                            )}
+                            return (
+                                <div
+                                    key={doc.id}
+                                    onClick={() => setSelectedDocId(doc.id)}
+                                    className={`
+                                        p-3 border-b border-slate-100 cursor-pointer transition-all hover:bg-slate-50
+                                        ${isSelected ? "bg-blue-50/60 border-l-4 border-l-blue-600" : "border-l-4 border-l-transparent"}
+                                    `}
+                                >
+                                    <div className="flex items-start justify-between mb-1">
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                            <FileText className={`h-4 w-4 flex-shrink-0 ${isSelected ? "text-blue-600" : "text-slate-400"}`} />
+                                            <span className={`text-sm font-medium truncate ${isSelected ? "text-blue-900" : "text-slate-700"}`}>{doc.name}</span>
                                         </div>
                                     </div>
+                                    <div className="flex items-center justify-between pl-6">
+                                        <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{doc.category || "General"}</span>
 
-                                    <div className="flex flex-col gap-2">
-                                        <div className="flex items-center gap-2">
-                                            {/* Approve Button */}
-                                            <button
-                                                onClick={() => handleApprove(doc.id)}
-                                                className={`flex items-center gap-1 text-sm font-medium px-4 py-2 rounded-lg transition-all border ${isApproved
-                                                    ? "bg-green-600 text-white border-green-600 shadow-sm ring-2 ring-green-100" // Active
-                                                    : "bg-white text-slate-500 border-slate-200 hover:border-green-300 hover:text-green-600" // Inactive
-                                                    }`}
-                                            >
-                                                <CheckCircle className="h-4 w-4" />
-                                                Approve
-                                            </button>
-
-                                            {/* Reject Button */}
-                                            <button
-                                                onClick={() => handleOpenReject(doc.id)}
-                                                className={`flex items-center gap-1 text-sm font-medium px-4 py-2 rounded-lg transition-all border ${isRejected
-                                                    ? "bg-red-600 text-white border-red-600 shadow-sm ring-2 ring-red-100" // Active
-                                                    : "bg-white text-slate-500 border-slate-200 hover:border-red-300 hover:text-red-600" // Inactive
-                                                    }`}
-                                            >
-                                                <XCircle className="h-4 w-4" />
-                                                Reject
-                                            </button>
-                                        </div>
+                                        {isApproved && <CheckCircle className="h-4 w-4 text-green-600" />}
+                                        {isRejected && <XCircle className="h-4 w-4 text-red-600" />}
                                     </div>
                                 </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
                 </div>
+
+                {/* 2. Middle Pane: Document Viewer */}
+                <div className="flex-1 bg-slate-100 border-r border-slate-200 overflow-hidden relative min-w-[400px]">
+                    <FileViewer
+                        url={selectedDoc?.url || null}
+                        documentId={selectedDoc?.id || null}
+                        readOnly={true}
+                    />
+                </div>
+
+                {/* 3. Right Pane: Form & Decisions */}
+                <div className="w-[450px] bg-white flex flex-col flex-shrink-0 shadow-xl z-10">
+                    {selectedDoc ? (
+                        <>
+                            {/* Decision Controls Sticky Header */}
+                            <div className="p-4 border-b border-slate-200 bg-white sticky top-0 z-20">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="font-semibold text-slate-800">Review Data</h3>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => handleApprove(selectedDoc.id)}
+                                            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md transition-all border ${isCurrentApproved
+                                                ? "bg-green-600 text-white border-green-600 ring-2 ring-green-100"
+                                                : "bg-white text-slate-600 border-slate-300 hover:border-green-500 hover:text-green-600"
+                                                }`}
+                                        >
+                                            <CheckCircle className="h-3.5 w-3.5" /> Approve
+                                        </button>
+                                        <button
+                                            onClick={() => handleOpenReject(selectedDoc.id)}
+                                            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md transition-all border ${isCurrentRejected
+                                                ? "bg-red-600 text-white border-red-600 ring-2 ring-red-100"
+                                                : "bg-white text-slate-600 border-slate-300 hover:border-red-500 hover:text-red-600"
+                                                }`}
+                                        >
+                                            <XCircle className="h-3.5 w-3.5" /> Reject
+                                        </button>
+                                    </div>
+                                </div>
+                                {isCurrentRejected && decisions[selectedDoc.id].reason && (
+                                    <div className="bg-red-50 text-red-800 text-xs p-2 rounded border border-red-100 flex gap-2 items-start mt-2">
+                                        <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                                        <span>{decisions[selectedDoc.id].reason}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Form - Read Only */}
+                            <div className="flex-1 overflow-y-auto bg-slate-50/50">
+                                <InvoiceForm
+                                    documentId={selectedDoc.id}
+                                    documentUrl={selectedDoc.url}
+                                    readOnly={true}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center text-slate-400 p-8 text-center">
+                            Select a document to review its extracted data.
+                        </div>
+                    )}
+                </div>
+
             </div>
 
             {/* Rejection Modal */}
@@ -284,27 +310,6 @@ export function OrderReviewInterface({ order }: { order: Order }) {
                             >
                                 Confirm Rejection
                             </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* File Preview Modal (Simplified) */}
-            {previewDoc && (
-                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
-                        <div className="flex items-center justify-between p-4 border-b">
-                            <h3 className="font-semibold">{previewDoc.name}</h3>
-                            <button onClick={() => setPreviewDoc(null)} className="p-2 hover:bg-slate-100 rounded-full">
-                                <XCircle className="h-6 w-6 text-slate-500" />
-                            </button>
-                        </div>
-                        <div className="flex-1 bg-slate-100 relative">
-                            {previewDoc.type?.startsWith("image/") ? (
-                                <img src={previewDoc.url} alt={previewDoc.name} className="w-full h-full object-contain" />
-                            ) : (
-                                <iframe src={previewDoc.url} className="w-full h-full" title={previewDoc.name} />
-                            )}
                         </div>
                     </div>
                 </div>
