@@ -271,7 +271,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
 
             {/* Action Bar - Row 2 */}
             {!readOnly && (
-                <div className={`flex items-center gap-2 ${isRecycleBin ? 'bg-red-500' : 'bg-blue-500'} p-2 rounded-t-lg text-white`}>
+                <div className={`flex items-center gap-3 ${isRecycleBin ? 'bg-red-600' : 'bg-blue-600'} px-4 py-3 rounded-t-xl text-white`}>
                     {/* Replaced Add Files button with UploadModal trigger or integrated it */}
                     {/* Check upload permissions: Entry Operator cannot upload */}
                     {!isRecycleBin && currentUser?.role !== "ENTRY_OPERATOR" && <UploadModal category={uploadCategory} organizationId={orgId ?? undefined} />}
@@ -280,7 +280,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                         <>
                             <button
                                 onClick={handleExport}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 rounded text-sm font-medium hover:bg-blue-700"
+                                className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-700 rounded text-sm"
                             >
                                 <Download className="h-4 w-4" /> Export CSV
                             </button>
@@ -299,7 +299,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
 
                     <button
                         onClick={() => router.refresh()}
-                        className={`flex items - center gap - 2 px - 3 py - 1.5 ${isRecycleBin ? 'hover:bg-white/20' : 'hover:bg-blue-600'} rounded text - sm`}
+                        className={`flex items-center gap-2 px-3 py-1.5 hover:bg-blue-700 rounded text-sm`}
                         title="Refresh"
                     >
                         <RefreshCw className="h-4 w-4" /> Refresh
@@ -308,7 +308,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                     <button
                         onClick={handleDelete}
                         disabled={selectedIds.length === 0}
-                        className="flex items-center gap-2 px-3 py-1.5 hover:bg-red-700 rounded text-sm ml-auto disabled:opacity-50 disabled:hover:bg-transparent"
+                        className="flex items-center gap-2 px-3 py-1.5 hover:bg-red-700 rounded text-sm ml-auto disabled:opacity-50"
                     >
                         <Trash2 className="h-4 w-4" /> {isRecycleBin ? "Delete Permanently" : "Delete"}
                     </button>
@@ -325,11 +325,11 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
 
             <div className={cn("bg-white border border-slate-200 shadow-sm overflow-hidden", readOnly ? "rounded-xl" : "rounded-b-xl")}>
                 <div className="overflow-x-auto min-h-[500px]">
-                    <table className="w-full text-left text-sm">
+                    <table className="w-full text-left text-sm text-slate-600">
                         <thead className={isRecycleBin ? "bg-red-500 text-white" : "bg-cyan-500 text-white"}>
                             <tr>
                                 {!readOnly && (
-                                    <th className="px-4 py-3 w-10">
+                                    <th className="p-4 w-10">
                                         <button onClick={toggleAll} className="text-white hover:text-slate-100">
                                             {selectedIds.length === documents.length && documents.length > 0 ? (
                                                 <CheckSquare className="h-5 w-5" />
@@ -339,34 +339,34 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                         </button>
                                     </th>
                                 )}
-                                <th className="px-4 py-3 font-semibold whitespace-nowrap">Doc ID</th>
+                                <th className="p-4 font-semibold whitespace-nowrap">Doc ID</th>
                                 {category === "IDENTITY_CARD" ? (
                                     <>
                                         {/* ID Card Specific Headers */}
-                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Full Name</th>
-                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Identity Number</th>
-                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Date of Issue</th>
-                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Expiry Date</th>
+                                        <th className="p-4 font-semibold whitespace-nowrap">Full Name</th>
+                                        <th className="p-4 font-semibold whitespace-nowrap">Identity Number</th>
+                                        <th className="p-4 font-semibold whitespace-nowrap">Date of Issue</th>
+                                        <th className="p-4 font-semibold whitespace-nowrap">Expiry Date</th>
                                     </>
                                 ) : (
                                     <>
                                         {/* Invoice / General Headers */}
-                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Doc Type</th>
-                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Supplier Name</th>
-                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Invoice Date</th>
-                                        <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Amount <span className="text-xs opacity-75 block">(Base)</span></th>
+                                        <th className="p-4 font-semibold whitespace-nowrap">Doc Type</th>
+                                        <th className="p-4 font-semibold whitespace-nowrap">Supplier Name</th>
+                                        <th className="p-4 font-semibold whitespace-nowrap">Invoice Date</th>
+                                        <th className="p-4 font-semibold whitespace-nowrap">Amount <span className="text-xs opacity-75 inline ml-1">(Base)</span></th>
                                     </>
                                 )}
 
-                                <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Category</th>
-                                <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Approval</th>
-                                {!readOnly && <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Actions</th>}
+                                <th className="p-4 font-semibold whitespace-nowrap">Category</th>
+                                <th className="p-4 font-semibold whitespace-nowrap">Approval</th>
+                                {!readOnly && <th className="p-4 font-semibold text-right whitespace-nowrap">Actions</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {filteredDocuments.length === 0 ? (
                                 <tr>
-                                    <td colSpan={10} className="px-6 py-12 text-center text-slate-400">
+                                    <td colSpan={10} className="p-8 text-center text-slate-400">
                                         No documents found. Upload some to get started.
                                     </td>
                                 </tr>
@@ -378,9 +378,9 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                     const idCard = doc.identityCard;
 
                                     return (
-                                        <tr key={doc.id} className={cn("transition-colors", isSelected ? "bg-indigo-50/50" : "hover:bg-slate-50/50")}>
+                                        <tr key={doc.id} className={cn("transition-colors", isSelected ? "bg-indigo-50/50" : "hover:bg-slate-50")}>
                                             {!readOnly && (
-                                                <td className="px-4 py-3">
+                                                <td className="p-4">
                                                     <button
                                                         onClick={() => toggleSelection(doc.id)}
                                                         className="text-slate-400 hover:text-indigo-600"
@@ -393,30 +393,30 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                                     </button>
                                                 </td>
                                             )}
-                                            <td className="px-4 py-3 font-mono text-xs text-slate-500">
+                                            <td className="p-4 font-mono text-xs text-slate-500">
                                                 {doc.id.slice(-6)}
                                             </td>
 
                                             {category === "IDENTITY_CARD" ? (
                                                 <>
                                                     {/* ID Card Data Cells */}
-                                                    <td className="px-4 py-3 font-medium text-slate-900">
+                                                    <td className="p-4 font-medium text-slate-900">
                                                         {idCard?.fullName || <span className="text-slate-400 italic">Processing...</span>}
                                                     </td>
-                                                    <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                                                    <td className="p-4 font-mono text-xs text-slate-600">
                                                         {idCard?.identityNumber || "-"}
                                                     </td>
-                                                    <td className="px-4 py-3 text-slate-600 text-xs text-center">
+                                                    <td className="p-4 text-slate-600 text-xs text-center">
                                                         {idCard?.dateOfIssue ? new Date(idCard.dateOfIssue).toLocaleDateString('en-GB') : "-"}
                                                     </td>
-                                                    <td className="px-4 py-3 text-slate-600 text-xs text-center">
+                                                    <td className="p-4 text-slate-600 text-xs text-center">
                                                         {idCard?.dateOfExpiry ? new Date(idCard.dateOfExpiry).toLocaleDateString('en-GB') : "-"}
                                                     </td>
                                                 </>
                                             ) : (
                                                 <>
                                                     {/* Invoice Data Cells */}
-                                                    <td className="px-4 py-3">
+                                                    <td className="p-4">
                                                         <div className="flex items-center gap-2">
                                                             <div className={cn("h-2.5 w-2.5 rounded-full",
                                                                 doc.status === "COMPLETED" ? "bg-green-500" :
@@ -426,20 +426,20 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                                             <span className="text-slate-700">{doc.type}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="px-4 py-3 text-slate-900 font-medium">
+                                                    <td className="p-4 text-slate-900 font-medium">
                                                         {invoice?.supplierName || <span className="text-slate-400 italic">Processing...</span>}
                                                     </td>
-                                                    <td className="px-4 py-3 text-slate-600">
+                                                    <td className="p-4 text-slate-600">
                                                         {invoice?.date ? new Date(invoice.date).toLocaleDateString('en-GB') : "-"}
                                                     </td>
-                                                    <td className="px-4 py-3 text-right text-slate-900">
+                                                    <td className="p-4 text-left text-slate-900 font-semibold">
                                                         {invoice?.baseCurrencyAmount ? invoice.baseCurrencyAmount.toFixed(2) : (invoice?.totalAmount || "")}
                                                         <span className="text-xs text-slate-400 ml-1">GBP</span>
                                                     </td>
                                                 </>
                                             )}
 
-                                            <td className="px-4 py-3">
+                                            <td className="p-4">
                                                 <select
                                                     className="w-full text-xs border-slate-200 rounded px-2 py-1 bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                                     value={doc.category || "OTHER"} // Handle null category
@@ -453,7 +453,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                                 </select>
                                             </td>
 
-                                            <td className="px-4 py-3 text-center">
+                                            <td className="p-4">
                                                 {doc.approvalStatus === "APPROVED" && (
                                                     <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
                                                         Approved
@@ -479,7 +479,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                                     </div>
                                                 )}
                                                 {(!doc.approvalStatus || doc.approvalStatus === "PENDING") && (
-                                                    <div className="flex items-center justify-center gap-1">
+                                                    <div className="flex items-center gap-1">
                                                         <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-700 mr-2">
                                                             Pending
                                                         </span>
@@ -510,7 +510,7 @@ export function DocumentList({ documents, isRecycleBin = false, category, curren
                                                 )}
                                             </td>
                                             {!readOnly && (
-                                                <td className="px-4 py-3 text-right">
+                                                <td className="p-4 text-right">
                                                     <div className="flex items-center justify-end gap-2">
                                                         {/* Claim Button for Operators */}
                                                         {!isRecycleBin && !doc.assignedToId && currentUser?.role === "ENTRY_OPERATOR" && (

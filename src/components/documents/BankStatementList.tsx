@@ -82,7 +82,36 @@ export function BankStatementList({ documents, isRecycleBin = false, currentUser
             {!readOnly && (
                 <div className="bg-blue-600 text-white px-4 py-3 flex items-center gap-3 rounded-t-xl">
                     <UploadModal category="BANK_STATEMENT" organizationId={orgId ?? undefined} />
-                    <button className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-700 rounded text-sm">
+                    <button
+                        onClick={() => {
+                            // Simple client-side CSV export
+                            const headers = ["Doc ID", "Type", "Name", "Date", "Amount", "Currency", "Status"];
+                            const rows = documents.map(doc => [
+                                doc.id,
+                                doc.type,
+                                doc.bankStatement?.displayName || doc.name,
+                                doc.bankStatement?.startDate ? format(new Date(doc.bankStatement.startDate), "yyyy-MM-dd") : "",
+                                doc.bankStatement?.totalAmount || "",
+                                doc.bankStatement?.currency || "GBP",
+                                doc.approvalStatus || "PENDING"
+                            ]);
+
+                            const csvContent = [
+                                headers.join(","),
+                                ...rows.map(row => row.map(cell => `"${String(cell || "").replace(/"/g, '""')}"`).join(","))
+                            ].join("\n");
+
+                            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement("a");
+                            link.setAttribute("href", url);
+                            link.setAttribute("download", `bank_statements_${new Date().toISOString().split('T')[0]}.csv`);
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-700 rounded text-sm"
+                    >
                         <Download className="h-4 w-4" /> Export CSV
                     </button>
                     <button
@@ -92,10 +121,19 @@ export function BankStatementList({ documents, isRecycleBin = false, currentUser
                     >
                         <RefreshCw className="h-4 w-4" /> Refresh
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-700 rounded text-sm">
+                    {/* Filter button removed as it is not implemented */}
+                    {/* <button className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-700 rounded text-sm">
                         <Filter className="h-4 w-4" /> Filter
-                    </button>
+                    </button> */}
                     <button
+                        onClick={async () => {
+                            if (confirm(`Are you sure you want to delete ${selectedIds.length} documents?`)) {
+                                const { batchSoftDeleteDocuments } = await import("@/lib/actions");
+                                await batchSoftDeleteDocuments(selectedIds);
+                                setSelectedIds([]);
+                                router.refresh();
+                            }
+                        }}
                         disabled={selectedIds.length === 0}
                         className="flex items-center gap-2 px-3 py-1.5 hover:bg-red-700 rounded text-sm ml-auto disabled:opacity-50"
                     >

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, FileText, CheckCircle } from "lucide-react";
 import { getDocuments } from "@/lib/actions";
 import { createOrder } from "@/lib/actions/orders";
+import { toast } from "sonner";
 
 interface PlaceOrderModalProps {
     isOpen: boolean;
@@ -85,18 +86,18 @@ export function PlaceOrderModal({ isOpen, onClose, onSuccess, category, organiza
 
     const handleSubmit = async () => {
         if (selectedDocs.size === 0) {
-            alert("Please select at least one document");
+            toast.error("Please select at least one document");
             return;
         }
 
         setSubmitting(true);
         try {
             await createOrder(Array.from(selectedDocs));
-            alert("Order placed successfully!");
+            toast.success("Order placed successfully!");
             onSuccess();
             onClose();
         } catch (error: any) {
-            alert(error.message || "Failed to place order");
+            toast.error(error.message || "Failed to place order");
         } finally {
             setSubmitting(false);
         }

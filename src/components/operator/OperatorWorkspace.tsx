@@ -15,7 +15,11 @@ export function OperatorWorkspace({ documents, currentUser, orgId, orderId }: { 
 
     // Check if all documents are processed/completed
     // Adjust based on your status logic. Assuming "COMPLETED" means processed by operator.
-    const allProcessed = documents.length > 0 && documents.every(d => d.status === "COMPLETED" || d.status === "REVIEW_REQUIRED");
+    const allProcessed = documents.length > 0 && documents.every(d =>
+        d.status === "COMPLETED" ||
+        d.status === "REVIEW_REQUIRED" ||
+        d.status === "QA_REVIEW"
+    );
 
     const handleSubmit = async () => {
         if (!orderId) return;
@@ -42,7 +46,7 @@ export function OperatorWorkspace({ documents, currentUser, orgId, orderId }: { 
             {/* Header / Actions Bar */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 bg-slate-50">
                 <div className="text-sm font-medium text-slate-600">
-                    Order Documents: {documents.length} | Processed: {documents.filter(d => d.status === "COMPLETED" || d.status === "REVIEW_REQUIRED").length}
+                    Order Documents: {documents.length} | Processed: {documents.filter(d => d.status === "COMPLETED" || d.status === "REVIEW_REQUIRED" || d.status === "QA_REVIEW").length}
                 </div>
                 {orderId && (
                     <button
