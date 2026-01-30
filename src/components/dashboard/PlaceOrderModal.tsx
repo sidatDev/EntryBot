@@ -36,6 +36,7 @@ export function PlaceOrderModal({ isOpen, onClose, onSuccess, category, organiza
                 // Filter out PROCESSING or COMPLETED documents (those are being worked on or done)
                 docs = docs.filter((doc: any) =>
                     doc.status === "UPLOADED" ||
+                    doc.status === "PENDING" || // Allow default schema status
                     doc.status === "APPROVED" ||
                     doc.status === "REJECTED"
                 );
